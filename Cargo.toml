@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.79"
 ash = "0.37.3"
+bytemuck = { version = "1.14.1", features = ["derive"] }
 cfg-if = "1.0.0"
 egui = "0.25.0"
 egui-winit = "0.25.0"
@@ -18,4 +19,8 @@ parking_lot = "0.12.1"
 raw-window-metal = "0.4.0"
 rfd = "0.13.0"
 smol = "2.0.0"
+tobj = { version = "4.0.1" }
 winit = "0.29.10"
+
+[build-dependencies]
+shaderc = "0.8.3"

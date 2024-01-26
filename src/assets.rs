@@ -40,7 +40,7 @@ impl AssetServer {
 
 async fn load_task() {
     let file_request = rfd::AsyncFileDialog::new().pick_file().await;
-    let Some(_file) = file_request else {
+    let Some(file) = file_request else {
         log::info!("File loading cancelled");
         return;
     };

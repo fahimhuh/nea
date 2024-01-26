@@ -1,3 +1,7 @@
+use super::{
+    command::CommandList,
+    sync::{Fence, Semaphore},
+};
 use ash::{
     extensions::{
         ext::MetalSurface,
@@ -61,18 +65,51 @@ impl Context {
         }
     }
 
-    unsafe fn destroy(&mut self) {
-        self.device.device_wait_idle().unwrap();
-        ManuallyDrop::drop(&mut self.allocator);
-        self.device.destroy_device(None);
-        self.instance.destroy_instance(None);
+    pub fn submit(
+        &self,
+        submits: &[CommandList],
+        wait: Option<&Semaphore>,
+        signal: Option<&Semaphore>,
+        fence: Option<&Fence>,
+    ) {
+        let mut command_buffers = Vec::with_capacity(submits.len());
+        for cmd in submits {
+            command_buffers.push(cmd.handle)
+        }
+
+        let mut submit = vk::SubmitInfo::builder()
+            .command_buffers(&command_buffers)
+            .wait_semaphores(&[wait.map_or(vk::Semaphore::null(), |s| s.handle)])
+            .signal_semaphores(&[signal.map_or(vk::Semaphore::null(), |s| s.handle)])
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::ALL_COMMANDS])
+            .build();
+
+        if wait.is_none() {
+            submit.wait_semaphore_count = 0
+        }
+
+        if signal.is_none() {
+            submit.signal_semaphore_count = 0
+        }
+        unsafe {
+            self.device
+                .queue_submit(
+                    self.queue,
+                    &[submit],
+                    fence.map_or(vk::Fence::null(), |f| f.handle),
+                )
+                .unwrap();
+        }
     }
 }
 
 impl Drop for Context {
     fn drop(&mut self) {
         unsafe {
-            self.destroy();
+            self.device.device_wait_idle().unwrap();
+            ManuallyDrop::drop(&mut self.allocator);
+            self.device.destroy_device(None);
+            self.instance.destroy_instance(None);
         }
     }
 }

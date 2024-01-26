@@ -36,7 +36,7 @@ pub struct Display {
 impl Display {
     const IMAGE_COUNT: u32 = 3;
 
-    pub fn new(context: Arc<Context>, window: &Window) -> Self {
+    pub fn new(context: Arc<Context>, window: &Window) -> Arc<Self> {
         let surface_loader = Surface::new(&context.entry, &context.instance);
         let surface = create_surface(&context.entry, &context.instance, window);
 
@@ -101,7 +101,7 @@ impl Display {
 
         let dpi = window.scale_factor() as f32;
 
-        Self {
+        Arc::new(Self {
             surface_loader,
             surface,
             swapchain_loader,
@@ -111,7 +111,7 @@ impl Display {
             dims,
             format: format.format,
             dpi,
-        }
+        })
     }
 
     pub fn frames_in_flight(&self) -> usize {
