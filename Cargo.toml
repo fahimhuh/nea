@@ -1,0 +1,19 @@
+[package]
+name = "nea"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.79"
+ash = "0.37.3"
+cfg-if = "1.0.0"
+glam = "0.25.0"
+gpu-allocator = "0.25.0"
+log = "0.4.20"
+parking_lot = "0.12.1"
+raw-window-metal = "0.4.0"
+rfd = "0.13.0"
+smol = "2.0.0"
+winit = "0.29.10"
