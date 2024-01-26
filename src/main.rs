@@ -8,6 +8,7 @@ use winit::{
 use world::World;
 
 mod assets;
+mod interface;
 mod render;
 mod vulkan;
 mod world;
@@ -17,10 +18,11 @@ fn main() {
 
     let event_loop = EventLoop::new().unwrap();
     let window = Window::new(&event_loop).unwrap();
+    window.set_resizable(false);
 
-    let _world = World::new();
+    let mut world = World::new();
 
-    let _renderer = Renderer::new(&window);
+    let mut renderer = Renderer::new(&window);
 
     event_loop
         .run(|event, target| {
@@ -35,7 +37,13 @@ fn main() {
                     _ => (),
                 },
 
-                Event::AboutToWait => {}
+                Event::AboutToWait => {
+                    AssetServer::update();
+
+                    world.update();
+                    renderer.render(&world);
+                }
+
                 _ => (),
             }
         })

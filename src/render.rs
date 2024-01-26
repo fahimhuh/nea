@@ -1,4 +1,10 @@
-use crate::vulkan::{context::Context, display::Display};
+use crate::{
+    vulkan::{
+        context::Context,
+        display::Display,
+    },
+    world::World,
+};
 use std::sync::Arc;
 use winit::window::Window;
 
@@ -14,4 +20,6 @@ impl Renderer {
 
         Self { context, display }
     }
+
+    pub fn render(&mut self, _world: &World) {}
 }

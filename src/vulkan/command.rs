@@ -1,8 +1,6 @@
-use std::sync::Arc;
+use super::context::Context;
 use ash::vk;
-use super::{
-    context::Context,
-};
+use std::sync::Arc;
 
 pub struct CommandPool {
     context: Arc<Context>,

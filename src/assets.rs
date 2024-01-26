@@ -25,7 +25,7 @@ impl AssetServer {
             .lock();
 
         for _ in 0..10 {
-            smol::block_on(asset_server.executor.tick());
+            asset_server.executor.try_tick();
         }
     }
 

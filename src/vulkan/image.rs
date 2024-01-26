@@ -145,3 +145,37 @@ impl Drop for ImageView {
         unsafe { self.context.device.destroy_image_view(self.handle, None) };
     }
 }
+
+pub struct Sampler {
+    context: Arc<Context>,
+    pub handle: vk::Sampler,
+}
+
+impl Sampler {
+    pub fn new(
+        context: Arc<Context>,
+        address_mode: vk::SamplerAddressMode,
+        filter: vk::Filter,
+    ) -> Self {
+        let create_info = vk::SamplerCreateInfo::builder()
+            .address_mode_u(address_mode)
+            .address_mode_v(address_mode)
+            .address_mode_w(address_mode)
+            .anisotropy_enable(false)
+            .min_filter(filter)
+            .mag_filter(filter)
+            .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+            .min_lod(0.0)
+            .max_lod(vk::LOD_CLAMP_NONE);
+
+        let handle = unsafe { context.device.create_sampler(&create_info, None) }.unwrap();
+
+        Self { context, handle }
+    }
+}
+
+impl Drop for Sampler {
+    fn drop(&mut self) {
+        unsafe { self.context.device.destroy_sampler(self.handle, None) }
+    }
+}

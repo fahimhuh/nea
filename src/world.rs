@@ -16,4 +16,6 @@ impl World {
             objects: Vec::default(),
         }
     }
+
+    pub fn update(&mut self) {}
 }
