@@ -1,5 +1,5 @@
+use crate::{loader::SceneLoader, world::World};
 use winit::{event::WindowEvent, window::Window};
-use crate::world::World;
 
 pub struct Interface {
     interface_context: egui::Context,
@@ -34,6 +34,8 @@ impl Interface {
         let raw_input = self.window_integration.take_egui_input(window);
         self.interface_context.begin_frame(raw_input);
 
+        self.scene_ui();
+
         let output = self.interface_context.end_frame();
         self.window_integration
             .handle_platform_output(window, output.platform_output.clone());
@@ -41,8 +43,8 @@ impl Interface {
         self.last_output = output;
     }
 
-    pub fn context(&mut self) -> &mut egui::Context {
-        &mut self.interface_context
+    pub fn context(&self) -> &egui::Context {
+        &self.interface_context
     }
 
     pub fn take_last_output(&mut self) -> egui::FullOutput {
@@ -51,8 +53,9 @@ impl Interface {
 
     pub fn scene_ui(&mut self) {
         egui::Window::new("Scene").show(&self.context(), |ui| {
-
+            if ui.button("Load Scene").clicked() {
+                SceneLoader::request_load();
+            }
         });
     }
-    
 }

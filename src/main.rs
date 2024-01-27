@@ -40,18 +40,12 @@ fn main() {
                     event,
                 } => match event {
                     WindowEvent::CloseRequested => target.exit(),
-                    WindowEvent::KeyboardInput { event, .. } => {
-                        if event.physical_key == PhysicalKey::Code(winit::keyboard::KeyCode::KeyR)
-                            && matches!(event.state, ElementState::Released)
-                        {
-                            SceneLoader::request_load();
-                        }
-                    }
-                    _ => (),
+                    event => interface.handle_event(&window, event),
                 },
 
                 Event::AboutToWait => {
                     world.update();
+                    interface.update(&window, &mut world);
                     renderer.render(&world, &mut interface);
                 }
 

@@ -1,4 +1,9 @@
-use super::{buffer::Buffer, context::Context, image::Image, pipeline::{ComputePipeline, GraphicsPipeline, PipelineLayout}};
+use super::{
+    buffer::Buffer,
+    context::Context,
+    image::Image,
+    pipeline::{ComputePipeline, GraphicsPipeline, PipelineLayout},
+};
 use ash::vk;
 use std::sync::Arc;
 
@@ -170,11 +175,7 @@ impl CommandList {
     }
 
     pub fn end_rendering(&self) {
-        unsafe {
-            self.context
-                .device
-                .cmd_end_rendering(self.handle)
-        }
+        unsafe { self.context.device.cmd_end_rendering(self.handle) }
     }
 
     pub fn bind_graphics_pipeline(&self, pipeline: &GraphicsPipeline) {

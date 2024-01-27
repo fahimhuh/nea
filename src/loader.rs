@@ -78,13 +78,12 @@ fn load_task() -> anyhow::Result<SceneData> {
     let (document, buffers, images) = gltf::import(&file)?;
 
     let mut gpu_images = Vec::with_capacity(images.len());
-
     // Parse the images into a GPU-friendly format
     for image in images {
         let gpu_image = images::parse_image(image)?;
-
         gpu_images.push(gpu_image)
     }
+    log::info!("Submitted {} for GPU-Upload", gpu_images.len());
 
     Ok(SceneData { images: gpu_images })
 }

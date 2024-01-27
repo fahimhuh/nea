@@ -1,4 +1,6 @@
+use super::frame::{Frame, FrameRef};
 use crate::{
+    interface::Interface,
     vulkan::{
         buffer::Buffer,
         command::{CommandList, CommandPool},
@@ -8,14 +10,12 @@ use crate::{
             DescriptorSetLayout,
         },
         display::Display,
-        image::{Image, ImageView},
+        image::{Image, ImageView, Sampler},
         pipeline::{GraphicsPipeline, PipelineLayout},
         shader::Shader,
         sync::Fence,
     },
-    interface::Interface,
 };
-use super::frame::{Frame, FrameRef};
 use ash::vk;
 use egui::{epaint::ImageDelta, TextureId};
 use std::{collections::HashMap, sync::Arc};
@@ -52,10 +52,8 @@ pub struct InterfacePainter {
     descriptor_pool: DescriptorPool,
     descriptor_set_layout: DescriptorSetLayout,
     pipeline_layout: PipelineLayout,
-    vert_shader: Shader,
-    frag_shader: Shader,
     pipeline: GraphicsPipeline,
-    sampler: vk::Sampler,
+    sampler: Sampler,
     frame_data: Vec<EguiFrameData>,
     textures: HashMap<egui::TextureId, EguiTextureData>,
 }
@@ -174,32 +172,17 @@ impl InterfacePainter {
             frame_data.push(frame);
         }
 
-        let sampler = unsafe {
-            context
-                .device
-                .create_sampler(
-                    &vk::SamplerCreateInfo::builder()
-                        .address_mode_u(vk::SamplerAddressMode::CLAMP_TO_EDGE)
-                        .address_mode_v(vk::SamplerAddressMode::CLAMP_TO_EDGE)
-                        .address_mode_w(vk::SamplerAddressMode::CLAMP_TO_EDGE)
-                        .anisotropy_enable(false)
-                        .min_filter(vk::Filter::LINEAR)
-                        .mag_filter(vk::Filter::LINEAR)
-                        .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
-                        .min_lod(0.0)
-                        .max_lod(vk::LOD_CLAMP_NONE),
-                    None,
-                )
-                .unwrap()
-        };
+        let sampler = Sampler::new(
+            context.clone(),
+            vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            vk::Filter::LINEAR,
+        );
 
         Self {
             transfer_command_pool,
             descriptor_pool,
             descriptor_set_layout,
             pipeline_layout,
-            vert_shader,
-            frag_shader,
             pipeline,
             frame_data,
             textures: HashMap::new(),
@@ -214,8 +197,6 @@ impl InterfacePainter {
         for (id, delta) in output.textures_delta.set {
             self.update_texture(frame, id, delta);
         }
-
-        // Render primitives
 
         let image_memory_barriers = [vk::ImageMemoryBarrier2 {
             src_stage_mask: vk::PipelineStageFlags2::NONE,
@@ -244,8 +225,9 @@ impl InterfacePainter {
             .color_attachments(&[vk::RenderingAttachmentInfo::builder()
                 .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
                 .image_view(frame.display.views[frame.index()].handle)
-                .load_op(vk::AttachmentLoadOp::LOAD)
+                .load_op(vk::AttachmentLoadOp::CLEAR)
                 .store_op(vk::AttachmentStoreOp::STORE)
+                .clear_value(vk::ClearValue::default())
                 .build()])
             .layer_count(1)
             .build();
@@ -410,25 +392,23 @@ impl InterfacePainter {
 
         cmds.pipeline_barrier(&barrier, &[]);
 
-        let region = vk::BufferImageCopy::builder()
-            .buffer_offset(0)
-            .buffer_row_length(delta.image.width() as u32)
-            .buffer_image_height(delta.image.height() as u32)
-            .image_subresource(
-                vk::ImageSubresourceLayers::builder()
-                    .aspect_mask(vk::ImageAspectFlags::COLOR)
-                    .base_array_layer(0)
-                    .layer_count(1)
-                    .mip_level(0)
-                    .build(),
-            )
-            .image_offset(vk::Offset3D { x: 0, y: 0, z: 0 })
-            .image_extent(vk::Extent3D {
+        let region = vk::BufferImageCopy {
+            buffer_offset: 0,
+            buffer_row_length: 0,
+            buffer_image_height: 0,
+            image_subresource: vk::ImageSubresourceLayers {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                mip_level: 0,
+                base_array_layer: 0,
+                layer_count: 1,
+            },
+            image_offset: vk::Offset3D::default(),
+            image_extent: vk::Extent3D {
                 width: delta.image.width() as u32,
                 height: delta.image.height() as u32,
                 depth: 1,
-            })
-            .build();
+            },
+        };
 
         cmds.copy_to_image(&staging, &image, &[region]);
 
@@ -555,7 +535,7 @@ impl InterfacePainter {
             descriptor_set.write(
                 &[DescriptorImageWrite {
                     image_kind: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                    sampler: Some(self.sampler),
+                    sampler: Some(self.sampler.handle),
                     layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
                     image_view: &view,
                     binding: 0,

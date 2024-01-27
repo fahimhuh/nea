@@ -4,9 +4,9 @@ use image::{DynamicImage, ImageBuffer, Pixel};
 use thiserror::Error;
 
 pub struct GpuImage {
-    bytes: Vec<u8>,
-    dims: glam::UVec3,
-    format: vk::Format,
+    pub bytes: Vec<u8>,
+    pub dims: glam::UVec3,
+    pub format: vk::Format,
 }
 
 #[derive(Error, Debug)]

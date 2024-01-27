@@ -1,6 +1,8 @@
 use self::{frame::Frames, painter::InterfacePainter, raytracer::Raytracer};
 use crate::{
-    interface::Interface, vulkan::{context::Context, display::Display}, world::World
+    interface::Interface,
+    vulkan::{context::Context, display::Display},
+    world::World,
 };
 use std::sync::Arc;
 use winit::window::Window;
@@ -15,7 +17,7 @@ pub struct Renderer {
     frames: Frames,
 
     raytracer: Raytracer,
-    painter: InterfacePainter
+    painter: InterfacePainter,
 }
 
 impl Renderer {
@@ -24,7 +26,7 @@ impl Renderer {
         let display = Display::new(context.clone(), window);
         let frames = Frames::new(context.clone(), display.clone());
 
-        let raytracer = Raytracer::new();
+        let raytracer = Raytracer::new(context.clone());
         let painter = InterfacePainter::new(context.clone(), &display);
 
         Self {
@@ -33,16 +35,20 @@ impl Renderer {
             frames,
 
             raytracer,
-            painter
+            painter,
         }
     }
 
-    pub fn render(&mut self, _world: &World, interface: &mut Interface) {
+    pub fn render(&mut self, world: &World, interface: &mut Interface) {
         let mut frame = self.frames.next();
         let cmds = frame.allocate_command_list();
+
+        cmds.begin();
+        self.raytracer.run(&cmds, &frame, world);
         self.painter.draw(&cmds, &frame, interface);
-        
-        frame.submit(&[]);
+        cmds.end();
+
+        frame.submit(&[cmds]);
     }
 }
 
