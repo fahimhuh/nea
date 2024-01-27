@@ -1,5 +1,9 @@
 use crate::vulkan::{
-    command::{CommandList, CommandPool}, context::Context, display::Display, image::{Image, ImageView}, sync::{Fence, Semaphore}
+    command::{CommandList, CommandPool},
+    context::Context,
+    display::Display,
+    image::{Image, ImageView},
+    sync::{Fence, Semaphore},
 };
 use ash::vk;
 use std::sync::Arc;

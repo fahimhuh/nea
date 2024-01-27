@@ -101,6 +101,10 @@ impl Context {
                 .unwrap();
         }
     }
+
+    pub fn wait_idle(&self) {
+        unsafe { self.device.device_wait_idle().unwrap() }
+    }
 }
 
 impl Drop for Context {

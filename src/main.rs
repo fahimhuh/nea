@@ -1,20 +1,25 @@
-use assets::AssetServer;
+use loader::SceneLoader;
 use render::Renderer;
 use winit::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    keyboard::PhysicalKey,
     window::Window,
 };
 use world::World;
 
-mod assets;
 mod interface;
+mod loader;
 mod render;
 mod vulkan;
 mod world;
 
 fn main() {
-    AssetServer::init();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
+    SceneLoader::init();
 
     let event_loop = EventLoop::new().unwrap();
     let window = Window::new(&event_loop).unwrap();
@@ -34,12 +39,17 @@ fn main() {
                     event,
                 } => match event {
                     WindowEvent::CloseRequested => target.exit(),
+                    WindowEvent::KeyboardInput { event, .. } => {
+                        if event.physical_key == PhysicalKey::Code(winit::keyboard::KeyCode::KeyR)
+                            && matches!(event.state, ElementState::Released)
+                        {
+                            SceneLoader::request_load();
+                        }
+                    }
                     _ => (),
                 },
 
                 Event::AboutToWait => {
-                    AssetServer::update();
-
                     world.update();
                     renderer.render(&world);
                 }
