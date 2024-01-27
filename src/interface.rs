@@ -1,18 +1,58 @@
-use egui::Context;
-use egui_winit::State;
-use parking_lot::Once;
-use winit::{raw_window_handle::HasDisplayHandle, window::Window};
+use winit::{event::WindowEvent, window::Window};
+use crate::world::World;
 
 pub struct Interface {
-    context: Context,
-    state: State,
+    interface_context: egui::Context,
+    window_integration: egui_winit::State,
+
+    last_output: egui::FullOutput,
 }
 
 impl Interface {
-    fn new(window: &Window) -> Self {
-        let context = Context::default();
-        let state = State::new(context.clone(), context.viewport_id(), window, None, None);
+    pub fn new(window: &Window) -> Self {
+        let interface_context = egui::Context::default();
+        let window_integration = egui_winit::State::new(
+            interface_context.clone(),
+            interface_context.viewport_id(),
+            &window,
+            None,
+            None,
+        );
 
-        Self { context, state }
+        Self {
+            interface_context,
+            window_integration,
+            last_output: egui::FullOutput::default(),
+        }
     }
+
+    pub fn handle_event(&mut self, window: &Window, event: WindowEvent) {
+        let response = self.window_integration.on_window_event(window, &event);
+    }
+
+    pub fn update(&mut self, window: &Window, world: &mut World) {
+        let raw_input = self.window_integration.take_egui_input(window);
+        self.interface_context.begin_frame(raw_input);
+
+        let output = self.interface_context.end_frame();
+        self.window_integration
+            .handle_platform_output(window, output.platform_output.clone());
+
+        self.last_output = output;
+    }
+
+    pub fn context(&mut self) -> &mut egui::Context {
+        &mut self.interface_context
+    }
+
+    pub fn take_last_output(&mut self) -> egui::FullOutput {
+        std::mem::take(&mut self.last_output)
+    }
+
+    pub fn scene_ui(&mut self) {
+        egui::Window::new("Scene").show(&self.context(), |ui| {
+
+        });
+    }
+    
 }

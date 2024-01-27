@@ -9,7 +9,10 @@ use std::{
 type ShaderInfo = (&'static str, ShaderKind);
 
 const SHADER_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/shaders");
-const SHADERS: [ShaderInfo; 0] = [];
+const SHADERS: [ShaderInfo; 2] = [
+    ("interface.frag", ShaderKind::Fragment),
+    ("interface.vert", ShaderKind::Vertex),
+];
 
 fn main() {
     println!("cargo:rerun-if-changed=shaders/");

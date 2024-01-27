@@ -1,3 +1,4 @@
+use interface::Interface;
 use loader::SceneLoader;
 use render::Renderer;
 use winit::{
@@ -26,8 +27,8 @@ fn main() {
     window.set_resizable(false);
 
     let mut world = World::new();
-
     let mut renderer = Renderer::new(&window);
+    let mut interface = Interface::new(&window);
 
     event_loop
         .run(|event, target| {
@@ -51,7 +52,7 @@ fn main() {
 
                 Event::AboutToWait => {
                     world.update();
-                    renderer.render(&world);
+                    renderer.render(&world, &mut interface);
                 }
 
                 _ => (),

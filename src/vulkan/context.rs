@@ -208,9 +208,12 @@ pub fn create_device(
         vk::KhrPortabilitySubsetFn::name().as_ptr(),
     ];
 
+    let mut features_1_3 = vk::PhysicalDeviceVulkan13Features::builder().dynamic_rendering(true).synchronization2(true).build();
+
     let create_info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_infos)
-        .enabled_extension_names(&extensions);
+        .enabled_extension_names(&extensions)
+        .push_next(&mut features_1_3);
 
     unsafe {
         instance

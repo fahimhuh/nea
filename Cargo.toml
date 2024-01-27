@@ -13,7 +13,7 @@ cfg-if = "1.0.0"
 egui = "0.25.0"
 egui-winit = "0.25.0"
 env_logger = "0.11.1"
-glam = "0.25.0"
+glam = { version = "0.25.0", features = ["bytemuck"] }
 gltf = "1.4.0"
 gpu-allocator = "0.25.0"
 image = "0.24.8"
