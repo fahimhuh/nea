@@ -1,21 +1,24 @@
-use std::sync::Arc;
-use ash::vk::{self, BufferImageCopy};
-use glam::Vec3Swizzles;
+use super::frame::FrameRef;
 use crate::{
-    interface::Interface, loader::{SceneData, SceneLoader}, vulkan::{
+    interface::Interface,
+    loader::{SceneData, SceneLoader},
+    vulkan::{
         buffer::Buffer,
         command::{CommandList, CommandPool},
         context::Context,
         image::Image,
         sync::Fence,
-    }, world::World
+    },
+    world::World,
 };
-use super::frame::FrameRef;
+use ash::vk::{self, BufferImageCopy};
+use glam::Vec3Swizzles;
+use std::sync::Arc;
 
 pub struct Texture {
     image: Image,
     dims: glam::UVec2,
-    format: vk::Format
+    format: vk::Format,
 }
 
 pub struct Raytracer {
@@ -38,8 +41,6 @@ impl Raytracer {
             log::info!("Loading scene into GPU memory");
             self.load_scene(frame, scene);
         }
-
-        
     }
 
     fn load_scene(&mut self, frame: &FrameRef, scene: SceneData) {
@@ -121,10 +122,13 @@ impl Raytracer {
 
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();
-            self.textures.push(Texture { image: texture, dims: image.dims.xy(), format: image.format });
+            self.textures.push(Texture {
+                image: texture,
+                dims: image.dims.xy(),
+                format: image.format,
+            });
         }
 
         log::info!("Loaded {} textures successfully", self.textures.len());
     }
-
 }

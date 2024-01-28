@@ -5,7 +5,7 @@ use super::{
 use ash::{
     extensions::{
         ext::MetalSurface,
-        khr::{Surface, Win32Surface},
+        khr::{AccelerationStructure, Surface, Win32Surface},
     },
     vk,
 };
@@ -30,6 +30,8 @@ pub struct Context {
     pub queue: vk::Queue,
 
     pub allocator: ManuallyDrop<Mutex<Allocator>>,
+
+    pub acceleration_structures: ash::extensions::khr::AccelerationStructure,
 }
 
 impl Context {
@@ -54,6 +56,8 @@ impl Context {
             ManuallyDrop::new(Mutex::new(Allocator::new(&create_info).unwrap()))
         };
 
+        let acceleration_structures = AccelerationStructure::new(&instance, &device);
+
         Self {
             entry,
             instance,
@@ -62,6 +66,7 @@ impl Context {
             queue_family,
             queue,
             allocator,
+            acceleration_structures,
         }
     }
 
@@ -204,6 +209,7 @@ pub fn create_device(
 
     let extensions = [
         ash::extensions::khr::Swapchain::name().as_ptr(),
+        ash::extensions::khr::AccelerationStructure::name().as_ptr(),
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         vk::KhrPortabilitySubsetFn::name().as_ptr(),
     ];

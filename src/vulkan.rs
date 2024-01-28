@@ -5,5 +5,6 @@ pub mod descriptor;
 pub mod display;
 pub mod image;
 pub mod pipeline;
+pub mod rt;
 pub mod shader;
 pub mod sync;
