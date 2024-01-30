@@ -51,6 +51,17 @@ impl Buffer {
     pub fn get_ptr(&self) -> NonNull<c_void> {
         self.allocation.mapped_ptr().unwrap()
     }
+
+    pub fn get_addr(&self) -> vk::DeviceAddress {
+        unsafe {
+            self.context
+                .device
+                .get_buffer_device_address(&vk::BufferDeviceAddressInfo {
+                    buffer: self.handle,
+                    ..Default::default()
+                })
+        }
+    }
 }
 
 impl Drop for Buffer {

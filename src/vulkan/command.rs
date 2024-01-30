@@ -93,11 +93,11 @@ impl CommandList {
     pub fn pipeline_barrier(
         &self,
         image_memory_barriers: &[vk::ImageMemoryBarrier2],
-        buffer_barriers: &[vk::BufferMemoryBarrier2],
+        buffer_barriers: &[vk::MemoryBarrier2],
     ) {
         let dependency_info = vk::DependencyInfo::builder()
             .image_memory_barriers(image_memory_barriers)
-            .buffer_memory_barriers(buffer_barriers);
+            .memory_barriers(buffer_barriers);
         unsafe {
             self.context
                 .device
@@ -249,6 +249,18 @@ impl CommandList {
                 vertex_offset,
                 first_instance,
             );
+        }
+    }
+
+    pub fn build_acceleration_structures(
+        &self,
+        build_infos: &[vk::AccelerationStructureBuildGeometryInfoKHR],
+        ranges: &[&[vk::AccelerationStructureBuildRangeInfoKHR]],
+    ) {
+        unsafe {
+            self.context
+                .acceleration_structures
+                .cmd_build_acceleration_structures(self.handle, build_infos, ranges)
         }
     }
 }
