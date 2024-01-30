@@ -1,15 +1,19 @@
 use super::frame::FrameRef;
 use crate::{
-    interface::Interface,
     loader::{images::GpuImage, objects::GpuObject, SceneData, SceneLoader},
     vulkan::{
-        buffer::Buffer, command::{CommandList, CommandPool}, context::Context, image::Image, rt::{self, AccelerationStructure, GeometryDescription, GeometryInstance}, sync::Fence
+        buffer::Buffer,
+        command::{CommandList, CommandPool},
+        context::Context,
+        image::Image,
+        rt::{AccelerationStructure, GeometryDescription, GeometryInstance},
+        sync::Fence,
     },
     world::World,
 };
 use ash::vk::{self, BufferImageCopy};
 use glam::Vec3Swizzles;
-use std::{cmp::max, sync::Arc};
+use std::{cmp::max, sync::Arc, time::Instant};
 
 pub struct Texture {
     image: Image,
@@ -29,7 +33,7 @@ pub struct Raytracer {
     meshes: Vec<Mesh>,
 
     blasses: Vec<AccelerationStructure>,
-    tlas: AccelerationStructure
+    tlas: Option<AccelerationStructure>,
 }
 
 impl Raytracer {
@@ -39,18 +43,18 @@ impl Raytracer {
         let meshes = Vec::new();
 
         let blasses = Vec::new();
-        let tlas = AccelerationStructure::build_top_level(context.clone(), &[]);
+        let tlas = None;
 
         Self {
             command_pool,
             textures,
             meshes,
             blasses,
-            tlas
+            tlas,
         }
     }
 
-    pub fn run(&mut self, commands: &CommandList, frame: &FrameRef, world: &World) {
+    pub fn run(&mut self, _commands: &CommandList, frame: &FrameRef, _world: &World) {
         if let Some(scene) = SceneLoader::poll() {
             log::info!("Loading scene into GPU memory");
             self.load_scene(frame, scene);
@@ -65,6 +69,7 @@ impl Raytracer {
 
     fn load_textures(&mut self, frame: &FrameRef, textures: Vec<GpuImage>) {
         self.textures.clear();
+        let start = Instant::now();
         for (index, image) in textures.into_iter().enumerate() {
             let texture = Image::new(
                 frame.context.clone(),
@@ -149,12 +154,18 @@ impl Raytracer {
             });
         }
 
-        log::info!("Loaded {} textures successfully", self.textures.len());
+        let time = Instant::now() - start;
+        log::info!(
+            "Loaded {} textures successfully in {:?}",
+            self.textures.len(),
+            time
+        );
     }
 
     fn load_objects(&mut self, frame: &FrameRef, objects: Vec<GpuObject>) {
         self.meshes.clear();
 
+        let start = Instant::now();
         let mut geometries = Vec::with_capacity(objects.len());
         for object in &objects {
             let size = max(
@@ -173,7 +184,9 @@ impl Raytracer {
             let vertices = Buffer::new(
                 frame.context.clone(),
                 (object.vertices.len() * std::mem::size_of::<f32>()) as u64,
-                vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+                vk::BufferUsageFlags::TRANSFER_DST
+                    | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS
+                    | vk::BufferUsageFlags::ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR,
                 gpu_allocator::MemoryLocation::GpuOnly,
                 "Vertex Buffer",
             );
@@ -181,7 +194,9 @@ impl Raytracer {
             let indices = Buffer::new(
                 frame.context.clone(),
                 (object.indices.len() * std::mem::size_of::<u32>()) as u64,
-                vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+                vk::BufferUsageFlags::TRANSFER_DST
+                    | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS
+                    | vk::BufferUsageFlags::ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR,
                 gpu_allocator::MemoryLocation::GpuOnly,
                 "Index Buffer",
             );
@@ -195,7 +210,7 @@ impl Raytracer {
             let region = vk::BufferCopy {
                 src_offset: 0,
                 dst_offset: 0,
-                size: (object.vertices.len() * std::mem::size_of::<f32>()) as u64 ,
+                size: (object.vertices.len() * std::mem::size_of::<f32>()) as u64,
             };
 
             cmds.begin();
@@ -204,7 +219,6 @@ impl Raytracer {
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();
 
-
             let ptr = staging.get_ptr().cast::<u32>().as_ptr();
             unsafe { ptr.copy_from_nonoverlapping(object.indices.as_ptr(), object.vertices.len()) }
 
@@ -212,9 +226,9 @@ impl Raytracer {
             let region = vk::BufferCopy {
                 src_offset: 0,
                 dst_offset: 0,
-                size: (object.indices.len() * std::mem::size_of::<u32>()) as u64 ,
+                size: (object.indices.len() * std::mem::size_of::<u32>()) as u64,
             };
-            
+
             cmds.begin();
             cmds.copy_buffer(&staging, &vertices, &[region]);
             cmds.end();
@@ -227,20 +241,18 @@ impl Raytracer {
                 max_vertex: (object.vertices.len() - 1) as u32,
                 primitives: object.indices.len().div_ceil(3) as u32,
             };
-            
+
             geometries.push(geometry);
 
-            let mesh = Mesh {
-                vertices,
-                indices,
-            };
+            let mesh = Mesh { vertices, indices };
 
-            
             self.meshes.push(mesh);
         }
         log::info!("Loaded {} meshes; Building scene...", self.meshes.len());
 
-        let blasses = AccelerationStructure::build_bottom_levels(frame.context.clone(), &geometries);
+        let blasses =
+            AccelerationStructure::build_bottom_levels(frame.context.clone(), &geometries);
+        log::info!("Built mesh descriptions, building scene description..");
 
         let mut instances = Vec::with_capacity(objects.len());
         for (index, object) in objects.iter().enumerate() {
@@ -256,8 +268,10 @@ impl Raytracer {
 
         self.blasses.clear();
         self.blasses = blasses;
-        
-        self.tlas = tlas;
-        log::info!("Scene built!");
+
+        self.tlas = Some(tlas);
+
+        let time = Instant::now() - start;
+        log::info!("Scene built in {:?} successfully", time);
     }
 }

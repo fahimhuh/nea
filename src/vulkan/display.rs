@@ -5,7 +5,6 @@ use super::{
 };
 use ash::{
     extensions::{
-        ext::MetalSurface,
         khr::{Surface, Swapchain, Win32Surface},
     },
     vk,
@@ -118,9 +117,9 @@ impl Display {
         Self::IMAGE_COUNT as usize
     }
 
-    pub fn present(&self, context: &Context, index: u32, wait_semaphore: &vk::Semaphore) {
+    pub fn present(&self, context: &Context, index: u32, wait_semaphore: &Semaphore) {
         let present_info = vk::PresentInfoKHR::builder()
-            .wait_semaphores(std::slice::from_ref(&wait_semaphore))
+            .wait_semaphores(std::slice::from_ref(&wait_semaphore.handle))
             .swapchains(std::slice::from_ref(&self.swapchain))
             .image_indices(std::slice::from_ref(&index));
 

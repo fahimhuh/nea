@@ -27,21 +27,18 @@ impl DescriptorSet {
         let mut writes = Vec::new();
 
         for image in images {
-            let mut image_info = vk::DescriptorImageInfo::builder()
-                .image_view(image.image_view.handle)
-                .image_layout(image.layout)
-                .build();
-
-            if let Some(sampler) = image.sampler {
-                image_info.sampler = sampler;
-            }
+            let image_info = vk::DescriptorImageInfo {
+                sampler: image.sampler.unwrap_or(vk::Sampler::null()),
+                image_view: image.image_view.handle,
+                image_layout: image.layout,
+            };
 
             let write = vk::WriteDescriptorSet::builder()
                 .descriptor_type(image.image_kind)
                 .dst_array_element(0)
                 .dst_binding(image.binding)
                 .dst_set(self.handle)
-                .image_info(&[image_info])
+                .image_info(std::slice::from_ref(&image_info))
                 .build();
 
             writes.push(write);

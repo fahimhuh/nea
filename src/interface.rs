@@ -27,10 +27,10 @@ impl Interface {
     }
 
     pub fn handle_event(&mut self, window: &Window, event: WindowEvent) {
-        let response = self.window_integration.on_window_event(window, &event);
+        let _response = self.window_integration.on_window_event(window, &event);
     }
 
-    pub fn update(&mut self, window: &Window, world: &mut World) {
+    pub fn update(&mut self, window: &Window, _world: &mut World) {
         let raw_input = self.window_integration.take_egui_input(window);
         self.interface_context.begin_frame(raw_input);
 

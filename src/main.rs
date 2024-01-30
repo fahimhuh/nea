@@ -2,9 +2,8 @@ use interface::Interface;
 use loader::SceneLoader;
 use render::Renderer;
 use winit::{
-    event::{ElementState, Event, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    keyboard::PhysicalKey,
     window::Window,
 };
 use world::World;

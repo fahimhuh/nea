@@ -5,7 +5,7 @@ use crate::vulkan::{
     image::{Image, ImageView},
     sync::{Fence, Semaphore},
 };
-use ash::vk;
+
 use std::sync::Arc;
 
 pub struct Frame {
@@ -47,18 +47,11 @@ impl<'a> FrameRef<'a> {
             Some(&self.frame.inflight),
         );
 
-        let present = vk::PresentInfoKHR::builder()
-            .wait_semaphores(&[self.frame.rendering_finished.handle])
-            .swapchains(&[self.display.swapchain])
-            .image_indices(&[self.swapchain_index])
-            .build();
-
-        unsafe {
-            self.display
-                .swapchain_loader
-                .queue_present(self.context.queue, &present)
-                .unwrap();
-        }
+        self.display.present(
+            &self.context,
+            self.swapchain_index,
+            &self.frame.rendering_finished,
+        );
     }
 }
 

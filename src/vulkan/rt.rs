@@ -273,6 +273,7 @@ impl AccelerationStructure {
         cmds.begin();
         cmds.build_acceleration_structures(&[build_info], &[&[range]]);
         cmds.end();
+        context.submit(&[cmds], None, None, Some(&fence));
         fence.wait_and_reset();
 
         Self {
@@ -283,13 +284,23 @@ impl AccelerationStructure {
     }
 
     pub fn get_addr(&self) -> vk::DeviceAddress {
-        let info = vk::AccelerationStructureDeviceAddressInfoKHR::builder().acceleration_structure(self.handle).build();
-        unsafe { self.context.acceleration_structures.get_acceleration_structure_device_address(&info) }
+        let info = vk::AccelerationStructureDeviceAddressInfoKHR::builder()
+            .acceleration_structure(self.handle)
+            .build();
+        unsafe {
+            self.context
+                .acceleration_structures
+                .get_acceleration_structure_device_address(&info)
+        }
     }
 }
 
 impl Drop for AccelerationStructure {
     fn drop(&mut self) {
-        unsafe { self.context.acceleration_structures.destroy_acceleration_structure(self.handle, None) };
+        unsafe {
+            self.context
+                .acceleration_structures
+                .destroy_acceleration_structure(self.handle, None)
+        };
     }
 }

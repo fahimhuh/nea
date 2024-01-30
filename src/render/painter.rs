@@ -1,4 +1,4 @@
-use super::frame::{Frame, FrameRef};
+use super::frame::{FrameRef};
 use crate::{
     interface::Interface,
     vulkan::{
@@ -104,11 +104,11 @@ impl InterfacePainter {
             "main",
         );
 
-        let binding = vk::VertexInputBindingDescription::builder()
-            .binding(0)
-            .input_rate(vk::VertexInputRate::VERTEX)
-            .stride(4 * std::mem::size_of::<f32>() as u32 + 4 * std::mem::size_of::<u8>() as u32)
-            .build();
+        let binding = vk::VertexInputBindingDescription {
+            binding: 0,
+            stride: (4 * std::mem::size_of::<f32>() + 4 * std::mem::size_of::<u8>()) as u32,
+            input_rate: vk::VertexInputRate::VERTEX,
+        };
 
         let attributes = [
             vk::VertexInputAttributeDescription {
@@ -133,11 +133,11 @@ impl InterfacePainter {
 
         let vertex_info = vk::PipelineVertexInputStateCreateInfo::builder()
             .vertex_attribute_descriptions(&attributes)
-            .vertex_binding_descriptions(&[binding])
+            .vertex_binding_descriptions(std::slice::from_ref(&binding))
             .build();
 
         let render_info = vk::PipelineRenderingCreateInfo::builder()
-            .color_attachment_formats(&[display.format])
+            .color_attachment_formats(std::slice::from_ref(&display.format))
             .build();
 
         let pipeline = GraphicsPipeline::new(
@@ -367,12 +367,15 @@ impl InterfacePainter {
                 | vk::ImageUsageFlags::TRANSFER_SRC,
             "UI Texture",
         );
+
         let view = ImageView::new(
             frame.context.clone(),
             &image,
             vk::Format::R8G8B8A8_UNORM,
             Image::default_subresource(vk::ImageAspectFlags::COLOR),
         );
+
+        println!("{:?}", view.handle);
 
         let cmds = self.transfer_command_pool.allocate();
         cmds.begin();

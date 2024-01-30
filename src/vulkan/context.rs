@@ -82,10 +82,13 @@ impl Context {
             command_buffers.push(cmd.handle)
         }
 
+        let wait_handle = wait.map_or(vk::Semaphore::null(), |s| s.handle);
+        let signal_handle = signal.map_or(vk::Semaphore::null(), |s| s.handle);
+
         let mut submit = vk::SubmitInfo::builder()
             .command_buffers(&command_buffers)
-            .wait_semaphores(&[wait.map_or(vk::Semaphore::null(), |s| s.handle)])
-            .signal_semaphores(&[signal.map_or(vk::Semaphore::null(), |s| s.handle)])
+            .wait_semaphores(std::slice::from_ref(&wait_handle))
+            .signal_semaphores(std::slice::from_ref(&signal_handle))
             .wait_dst_stage_mask(&[vk::PipelineStageFlags::ALL_COMMANDS])
             .build();
 
@@ -96,6 +99,7 @@ impl Context {
         if signal.is_none() {
             submit.signal_semaphore_count = 0
         }
+
         unsafe {
             self.device
                 .queue_submit(
@@ -210,6 +214,7 @@ pub fn create_device(
     let extensions = [
         ash::extensions::khr::Swapchain::name().as_ptr(),
         ash::extensions::khr::AccelerationStructure::name().as_ptr(),
+        ash::extensions::khr::DeferredHostOperations::name().as_ptr(),
         vk::KhrRayQueryFn::name().as_ptr(),
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         vk::KhrPortabilitySubsetFn::name().as_ptr(),
