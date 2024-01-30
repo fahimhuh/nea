@@ -158,11 +158,16 @@ impl AccelerationStructure {
         let mut instances = Vec::with_capacity(objects.len());
         let command_pool = CommandPool::new(context.clone(), context.queue_family);
         for object in objects {
-            let matrix: [f32; 12] = object.transform.transpose().to_cols_array().split_at(12).0.try_into().unwrap();
+            let matrix: [f32; 12] = object
+                .transform
+                .transpose()
+                .to_cols_array()
+                .split_at(12)
+                .0
+                .try_into()
+                .unwrap();
 
-            let transform = vk::TransformMatrixKHR {
-                matrix,
-            };
+            let transform = vk::TransformMatrixKHR { matrix };
 
             let instance = vk::AccelerationStructureInstanceKHR {
                 transform,
@@ -186,10 +191,12 @@ impl AccelerationStructure {
         );
 
         unsafe {
-            let ptr = instance_buffer.get_ptr().cast::<vk::AccelerationStructureInstanceKHR>().as_ptr();
+            let ptr = instance_buffer
+                .get_ptr()
+                .cast::<vk::AccelerationStructureInstanceKHR>()
+                .as_ptr();
             ptr.copy_from(instances.as_ptr(), instances.len());
         }
-
 
         let geometry_instances = vk::AccelerationStructureGeometryInstancesDataKHR::builder()
             .data(vk::DeviceOrHostAddressConstKHR {
@@ -243,7 +250,13 @@ impl AccelerationStructure {
                 .unwrap()
         };
 
-        let scratch_buffer = Buffer::new(context.clone(), sizes.build_scratch_size, vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, gpu_allocator::MemoryLocation::GpuOnly, "TLAS Scratch Buffer");
+        let scratch_buffer = Buffer::new(
+            context.clone(),
+            sizes.build_scratch_size,
+            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+            gpu_allocator::MemoryLocation::GpuOnly,
+            "TLAS Scratch Buffer",
+        );
 
         build_info.dst_acceleration_structure = handle;
         build_info.scratch_data.device_address = scratch_buffer.get_addr();
@@ -267,6 +280,5 @@ impl AccelerationStructure {
             handle,
             buffer,
         }
-
     }
 }

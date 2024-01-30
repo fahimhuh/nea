@@ -210,6 +210,7 @@ pub fn create_device(
     let extensions = [
         ash::extensions::khr::Swapchain::name().as_ptr(),
         ash::extensions::khr::AccelerationStructure::name().as_ptr(),
+        vk::KhrRayQueryFn::name().as_ptr(),
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         vk::KhrPortabilitySubsetFn::name().as_ptr(),
     ];
@@ -218,16 +219,26 @@ pub fn create_device(
         .dynamic_rendering(true)
         .synchronization2(true)
         .build();
+
     let mut features_1_2 = vk::PhysicalDeviceVulkan12Features::builder()
         .buffer_device_address(true)
         .buffer_device_address_capture_replay(true)
         .build();
 
+    let mut features_as = vk::PhysicalDeviceAccelerationStructureFeaturesKHR::builder()
+        .acceleration_structure(true)
+        .acceleration_structure_capture_replay(true)
+        .build();
+
+    let mut features_rq = vk::PhysicalDeviceRayQueryFeaturesKHR::builder().ray_query(true);
+
     let create_info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_infos)
         .enabled_extension_names(&extensions)
         .push_next(&mut features_1_2)
-        .push_next(&mut features_1_3);
+        .push_next(&mut features_1_3)
+        .push_next(&mut features_as)
+        .push_next(&mut features_rq);
 
     unsafe {
         instance
