@@ -3,10 +3,10 @@ use ash::vk::{self, Packed24_8};
 use std::sync::Arc;
 
 pub struct GeometryDescription {
-    vertices: vk::DeviceAddress,
-    indices: vk::DeviceAddress,
-    max_vertex: u32,
-    primitives: u32,
+    pub vertices: vk::DeviceAddress,
+    pub indices: vk::DeviceAddress,
+    pub max_vertex: u32,
+    pub primitives: u32,
 }
 
 struct BlasBuild {
@@ -16,8 +16,8 @@ struct BlasBuild {
 }
 
 pub struct GeometryInstance {
-    transform: glam::Mat4,
-    blas: vk::DeviceAddress,
+    pub transform: glam::Mat4,
+    pub blas: vk::DeviceAddress,
 }
 
 pub struct AccelerationStructure {
@@ -195,7 +195,7 @@ impl AccelerationStructure {
                 .get_ptr()
                 .cast::<vk::AccelerationStructureInstanceKHR>()
                 .as_ptr();
-            ptr.copy_from(instances.as_ptr(), instances.len());
+            ptr.copy_from_nonoverlapping(instances.as_ptr(), instances.len());
         }
 
         let geometry_instances = vk::AccelerationStructureGeometryInstancesDataKHR::builder()
@@ -280,5 +280,16 @@ impl AccelerationStructure {
             handle,
             buffer,
         }
+    }
+
+    pub fn get_addr(&self) -> vk::DeviceAddress {
+        let info = vk::AccelerationStructureDeviceAddressInfoKHR::builder().acceleration_structure(self.handle).build();
+        unsafe { self.context.acceleration_structures.get_acceleration_structure_device_address(&info) }
+    }
+}
+
+impl Drop for AccelerationStructure {
+    fn drop(&mut self) {
+        unsafe { self.context.acceleration_structures.destroy_acceleration_structure(self.handle, None) };
     }
 }

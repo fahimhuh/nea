@@ -1,16 +1,18 @@
-use self::images::GpuImage;
+use self::{images::GpuImage, objects::GpuObject};
 use parking_lot::Mutex;
 use std::{
     sync::OnceLock,
     thread::{self, JoinHandle},
 };
 
-mod images;
+pub mod images;
+pub mod objects;
 
 static GLOBAL_SCENE_LOADER: OnceLock<Mutex<SceneLoader>> = OnceLock::new();
 
 pub struct SceneData {
     pub images: Vec<GpuImage>,
+    pub objects: Vec<GpuObject>,
 }
 
 pub struct SceneLoader {
@@ -83,7 +85,11 @@ fn load_task() -> anyhow::Result<SceneData> {
         let gpu_image = images::parse_image(image)?;
         gpu_images.push(gpu_image)
     }
-    log::info!("Submitted {} for GPU-Upload", gpu_images.len());
 
-    Ok(SceneData { images: gpu_images })
+    let objects = objects::load_objects(&document, &buffers);
+
+    Ok(SceneData {
+        images: gpu_images,
+        objects,
+    })
 }

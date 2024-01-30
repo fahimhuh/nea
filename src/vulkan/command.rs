@@ -263,4 +263,10 @@ impl CommandList {
                 .cmd_build_acceleration_structures(self.handle, build_infos, ranges)
         }
     }
+
+    pub fn copy_buffer(&self, src: &Buffer, dst: &Buffer, regions: &[vk::BufferCopy]) {
+        unsafe {
+            self.context.device.cmd_copy_buffer(self.handle, src.handle, dst.handle, regions)
+        }
+    }
 }
