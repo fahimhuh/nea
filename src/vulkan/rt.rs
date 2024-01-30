@@ -1,5 +1,5 @@
 use super::{buffer::Buffer, command::CommandPool, context::Context, sync::Fence};
-use ash::vk;
+use ash::vk::{self, Packed24_8};
 use std::sync::Arc;
 
 pub struct GeometryDescription {
@@ -13,6 +13,11 @@ struct BlasBuild {
     size_info: vk::AccelerationStructureBuildSizesInfoKHR,
     build_info: vk::AccelerationStructureBuildGeometryInfoKHR,
     range: vk::AccelerationStructureBuildRangeInfoKHR,
+}
+
+pub struct GeometryInstance {
+    transform: glam::Mat4,
+    blas: vk::DeviceAddress,
 }
 
 pub struct AccelerationStructure {
@@ -147,5 +152,121 @@ impl AccelerationStructure {
         }
 
         acceleration_structures
+    }
+
+    pub fn build_top_level(context: Arc<Context>, objects: &[GeometryInstance]) -> Self {
+        let mut instances = Vec::with_capacity(objects.len());
+        let command_pool = CommandPool::new(context.clone(), context.queue_family);
+        for object in objects {
+            let matrix: [f32; 12] = object.transform.transpose().to_cols_array().split_at(12).0.try_into().unwrap();
+
+            let transform = vk::TransformMatrixKHR {
+                matrix,
+            };
+
+            let instance = vk::AccelerationStructureInstanceKHR {
+                transform,
+                instance_custom_index_and_mask: Packed24_8::new(0, 0xFF),
+                instance_shader_binding_table_record_offset_and_flags: Packed24_8::new(0, 0),
+                acceleration_structure_reference: vk::AccelerationStructureReferenceKHR {
+                    device_handle: object.blas,
+                },
+            };
+
+            instances.push(instance);
+        }
+
+        let instance_buffer = Buffer::new(
+            context.clone(),
+            (std::mem::size_of::<vk::AccelerationStructureInstanceKHR>() * instances.len()) as u64,
+            vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS
+                | vk::BufferUsageFlags::ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR,
+            gpu_allocator::MemoryLocation::CpuToGpu,
+            "TLAS Instance Buffer",
+        );
+
+        unsafe {
+            let ptr = instance_buffer.get_ptr().cast::<vk::AccelerationStructureInstanceKHR>().as_ptr();
+            ptr.copy_from(instances.as_ptr(), instances.len());
+        }
+
+
+        let geometry_instances = vk::AccelerationStructureGeometryInstancesDataKHR::builder()
+            .data(vk::DeviceOrHostAddressConstKHR {
+                device_address: instance_buffer.get_addr(),
+            })
+            .build();
+
+        let geometry = vk::AccelerationStructureGeometryKHR::builder()
+            .geometry_type(vk::GeometryTypeKHR::INSTANCES)
+            .geometry(vk::AccelerationStructureGeometryDataKHR {
+                instances: geometry_instances,
+            })
+            .build();
+
+        let mut build_info = vk::AccelerationStructureBuildGeometryInfoKHR::builder()
+            .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
+            .geometries(&[geometry])
+            .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
+            .ty(vk::AccelerationStructureTypeKHR::TOP_LEVEL)
+            .build();
+
+        let sizes = unsafe {
+            context
+                .acceleration_structures
+                .get_acceleration_structure_build_sizes(
+                    vk::AccelerationStructureBuildTypeKHR::DEVICE,
+                    &build_info,
+                    &[instances.len() as u32],
+                )
+        };
+
+        let buffer = Buffer::new(
+            context.clone(),
+            sizes.acceleration_structure_size,
+            vk::BufferUsageFlags::ACCELERATION_STRUCTURE_STORAGE_KHR
+                | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+            gpu_allocator::MemoryLocation::GpuOnly,
+            "BLAS Storage",
+        );
+
+        let create_info = vk::AccelerationStructureCreateInfoKHR::builder()
+            .buffer(buffer.handle)
+            .offset(0)
+            .size(sizes.acceleration_structure_size)
+            .ty(vk::AccelerationStructureTypeKHR::TOP_LEVEL);
+
+        let handle = unsafe {
+            context
+                .acceleration_structures
+                .create_acceleration_structure(&create_info, None)
+                .unwrap()
+        };
+
+        let scratch_buffer = Buffer::new(context.clone(), sizes.build_scratch_size, vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, gpu_allocator::MemoryLocation::GpuOnly, "TLAS Scratch Buffer");
+
+        build_info.dst_acceleration_structure = handle;
+        build_info.scratch_data.device_address = scratch_buffer.get_addr();
+
+        let range = vk::AccelerationStructureBuildRangeInfoKHR {
+            primitive_count: instances.len() as u32,
+            primitive_offset: 0,
+            first_vertex: 0,
+            transform_offset: 0,
+        };
+
+        let fence = Fence::new(context.clone(), false);
+        let cmds = command_pool.allocate();
+        cmds.begin();
+        cmds.build_acceleration_structures(&[build_info], &[&[range]]);
+        cmds.end();
+        fence.wait_and_reset();
+
+        Self {
+            context,
+            handle,
+            buffer,
+        }
+
     }
 }
