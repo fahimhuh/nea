@@ -1,4 +1,4 @@
-use super::frame::{FrameRef};
+use super::frame::FrameRef;
 use crate::{
     interface::Interface,
     vulkan::{
@@ -214,6 +214,13 @@ impl InterfacePainter {
 
         cmds.pipeline_barrier(&image_memory_barriers, &[]);
 
+        let swapchain_attachment = vk::RenderingAttachmentInfo::builder()
+            .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .image_view(frame.image_view().handle)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::STORE)
+            .clear_value(vk::ClearValue::default());
+
         let rendering_info = vk::RenderingInfo::builder()
             .render_area(vk::Rect2D {
                 offset: vk::Offset2D::default(),
@@ -222,13 +229,7 @@ impl InterfacePainter {
                     height: frame.display.dims.y,
                 },
             })
-            .color_attachments(&[vk::RenderingAttachmentInfo::builder()
-                .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-                .image_view(frame.display.views[frame.index()].handle)
-                .load_op(vk::AttachmentLoadOp::CLEAR)
-                .store_op(vk::AttachmentStoreOp::STORE)
-                .clear_value(vk::ClearValue::default())
-                .build()])
+            .color_attachments(std::slice::from_ref(&swapchain_attachment))
             .layer_count(1)
             .build();
 
@@ -374,8 +375,6 @@ impl InterfacePainter {
             vk::Format::R8G8B8A8_UNORM,
             Image::default_subresource(vk::ImageAspectFlags::COLOR),
         );
-
-        println!("{:?}", view.handle);
 
         let cmds = self.transfer_command_pool.allocate();
         cmds.begin();

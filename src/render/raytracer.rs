@@ -156,7 +156,7 @@ impl Raytracer {
 
         let time = Instant::now() - start;
         log::info!(
-            "Loaded {} textures successfully in {:?}",
+            "Loaded {} textures in {:?}",
             self.textures.len(),
             time
         );
@@ -248,11 +248,11 @@ impl Raytracer {
 
             self.meshes.push(mesh);
         }
-        log::info!("Loaded {} meshes; Building scene...", self.meshes.len());
+        log::info!("Loaded {} meshes; Building meshes...", self.meshes.len());
 
         let blasses =
             AccelerationStructure::build_bottom_levels(frame.context.clone(), &geometries);
-        log::info!("Built mesh descriptions, building scene description..");
+        log::info!("Built meshes, building scene..");
 
         let mut instances = Vec::with_capacity(objects.len());
         for (index, object) in objects.iter().enumerate() {
@@ -272,6 +272,6 @@ impl Raytracer {
         self.tlas = Some(tlas);
 
         let time = Instant::now() - start;
-        log::info!("Scene built in {:?} successfully", time);
+        log::info!("Scene built in {:?}", time);
     }
 }

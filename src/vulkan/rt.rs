@@ -11,7 +11,7 @@ pub struct GeometryDescription {
 
 struct BlasBuild {
     size_info: vk::AccelerationStructureBuildSizesInfoKHR,
-    build_info: vk::AccelerationStructureBuildGeometryInfoKHR,
+    geometry: vk::AccelerationStructureGeometryKHR,
     range: vk::AccelerationStructureBuildRangeInfoKHR,
 }
 
@@ -42,13 +42,12 @@ impl AccelerationStructure {
                 .index_data(vk::DeviceOrHostAddressConstKHR {
                     device_address: desc.indices,
                 })
-                .max_vertex(desc.max_vertex)
-                .build();
+                .max_vertex(desc.max_vertex);
 
             let geometry = vk::AccelerationStructureGeometryKHR::builder()
                 .geometry_type(vk::GeometryTypeKHR::TRIANGLES)
                 .flags(vk::GeometryFlagsKHR::OPAQUE)
-                .geometry(vk::AccelerationStructureGeometryDataKHR { triangles })
+                .geometry(vk::AccelerationStructureGeometryDataKHR { triangles: *triangles })
                 .build();
 
             let range = vk::AccelerationStructureBuildRangeInfoKHR::builder()
@@ -62,7 +61,7 @@ impl AccelerationStructure {
                 .ty(vk::AccelerationStructureTypeKHR::BOTTOM_LEVEL)
                 .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
                 .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
-                .geometries(&[geometry])
+                .geometries(std::slice::from_ref(&geometry))
                 .build();
 
             let size_info = unsafe {
@@ -77,7 +76,7 @@ impl AccelerationStructure {
 
             let build = BlasBuild {
                 size_info,
-                build_info,
+                geometry,
                 range,
             };
 
@@ -99,6 +98,13 @@ impl AccelerationStructure {
         let mut acceleration_structures = Vec::with_capacity(builds.len());
 
         for build in &mut builds {
+            let mut build_info = vk::AccelerationStructureBuildGeometryInfoKHR::builder()
+                .ty(vk::AccelerationStructureTypeKHR::BOTTOM_LEVEL)
+                .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
+                .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
+                .geometries(std::slice::from_ref(&build.geometry))
+                .build();
+
             let buffer = Buffer::new(
                 context.clone(),
                 build.size_info.acceleration_structure_size,
@@ -121,12 +127,12 @@ impl AccelerationStructure {
                     .unwrap()
             };
 
-            build.build_info.dst_acceleration_structure = handle;
-            build.build_info.scratch_data.device_address = scratch_buffer.get_addr();
+            build_info.dst_acceleration_structure = handle;
+            build_info.scratch_data.device_address = scratch_buffer.get_addr();
 
             let cmds = command_pool.allocate();
             cmds.begin();
-            cmds.build_acceleration_structures(&[build.build_info], &[&[build.range]]);
+            cmds.build_acceleration_structures(std::slice::from_ref(&build_info), &[std::slice::from_ref(&build.range)]);
 
             let barrier = vk::MemoryBarrier2 {
                 src_stage_mask: vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR,
@@ -213,7 +219,7 @@ impl AccelerationStructure {
 
         let mut build_info = vk::AccelerationStructureBuildGeometryInfoKHR::builder()
             .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
-            .geometries(&[geometry])
+            .geometries(std::slice::from_ref(&geometry))
             .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
             .ty(vk::AccelerationStructureTypeKHR::TOP_LEVEL)
             .build();
@@ -271,7 +277,7 @@ impl AccelerationStructure {
         let fence = Fence::new(context.clone(), false);
         let cmds = command_pool.allocate();
         cmds.begin();
-        cmds.build_acceleration_structures(&[build_info], &[&[range]]);
+        cmds.build_acceleration_structures(std::slice::from_ref(&build_info), &[std::slice::from_ref(&range)]);
         cmds.end();
         context.submit(&[cmds], None, None, Some(&fence));
         fence.wait_and_reset();

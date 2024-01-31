@@ -1,6 +1,6 @@
 use ash::vk;
-use gltf::{image::Format};
-use image::{Pixel};
+use gltf::image::Format;
+use image::Pixel;
 use thiserror::Error;
 
 pub struct GpuImage {
