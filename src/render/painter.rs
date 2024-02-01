@@ -217,7 +217,7 @@ impl InterfacePainter {
         let swapchain_attachment = vk::RenderingAttachmentInfo::builder()
             .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .image_view(frame.image_view().handle)
-            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .load_op(vk::AttachmentLoadOp::LOAD)
             .store_op(vk::AttachmentStoreOp::STORE)
             .clear_value(vk::ClearValue::default());
 

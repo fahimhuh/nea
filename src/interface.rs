@@ -30,11 +30,12 @@ impl Interface {
         let _response = self.window_integration.on_window_event(window, &event);
     }
 
-    pub fn update(&mut self, window: &Window, _world: &mut World) {
+    pub fn update(&mut self, window: &Window, world: &mut World) {
         let raw_input = self.window_integration.take_egui_input(window);
         self.interface_context.begin_frame(raw_input);
 
         self.scene_ui();
+        self.camera_ui(world);
 
         let output = self.interface_context.end_frame();
         self.window_integration
@@ -49,6 +50,38 @@ impl Interface {
 
     pub fn take_last_output(&mut self) -> egui::FullOutput {
         std::mem::take(&mut self.last_output)
+    }
+
+    pub fn  camera_ui(&mut self, world: &mut World) {
+        egui::Window::new("Camera").show(&self.context(), |ui| {
+            ui.label("Position");
+            ui.horizontal(|ui| {
+                ui.label("X:");
+                ui.add(egui::DragValue::new(&mut world.camera.position.x));
+
+                ui.label("Y:");
+                ui.add(egui::DragValue::new(&mut world.camera.position.y));
+
+                ui.label("Z:");
+                ui.add(egui::DragValue::new(&mut world.camera.position.z));
+            });
+
+            ui.label("Rotation");
+            let mut rot = world.camera.rotation.to_euler(glam::EulerRot::XYZ);
+            ui.horizontal(|ui| {
+                ui.label("X:");
+                ui.add(egui::DragValue::new(&mut rot.0).speed(0.1));
+
+                ui.label("Y:");
+                ui.add(egui::DragValue::new(&mut rot.1).speed(0.1));
+
+                ui.label("Z:");
+                ui.add(egui::DragValue::new(&mut rot.2).speed(0.1));
+            });
+
+            world.camera.rotation = glam::Quat::from_euler(glam::EulerRot::XYZ, rot.0, rot.1, rot.2);
+        });
+
     }
 
     pub fn scene_ui(&mut self) {

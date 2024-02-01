@@ -9,9 +9,10 @@ use std::{
 type ShaderInfo = (&'static str, ShaderKind);
 
 const SHADER_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/shaders");
-const SHADERS: [ShaderInfo; 2] = [
+const SHADERS: [ShaderInfo; 3] = [
     ("interface.frag", ShaderKind::Fragment),
     ("interface.vert", ShaderKind::Vertex),
+    ("raytracer.comp", ShaderKind::Compute),
 ];
 
 fn main() {

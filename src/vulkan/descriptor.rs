@@ -1,4 +1,4 @@
-use super::{buffer::Buffer, context::Context, image::ImageView};
+use super::{buffer::Buffer, context::Context, image::ImageView, rt::AccelerationStructure};
 use ash::vk;
 use std::sync::Arc;
 
@@ -14,6 +14,11 @@ pub struct DescriptorBufferWrite<'a> {
     pub buffer_kind: vk::DescriptorType,
     pub buffer: &'a Buffer,
     pub range: u64,
+    pub binding: u32,
+}
+
+pub struct DescriptorTLASWrite<'a> {
+    pub tlas: &'a AccelerationStructure,
     pub binding: u32,
 }
 
@@ -61,7 +66,27 @@ impl DescriptorSet {
             writes.push(write);
         }
 
+        
+
         unsafe { self.context.device.update_descriptor_sets(&writes, &[]) };
+    }
+
+    pub fn write_tlas(&self, tlas: DescriptorTLASWrite) {
+        let handle = tlas.tlas.handle;
+        let mut tlas_write = vk::WriteDescriptorSetAccelerationStructureKHR::builder()
+            .acceleration_structures(&[handle])
+            .build();
+
+        let mut write = vk::WriteDescriptorSet::builder()
+            .descriptor_type(vk::DescriptorType::ACCELERATION_STRUCTURE_KHR)
+            .dst_array_element(0)
+            .dst_binding(tlas.binding)
+            .dst_set(self.handle)
+            .push_next(&mut tlas_write);
+
+        write.descriptor_count = 1;
+
+        unsafe { self.context.device.update_descriptor_sets(std::slice::from_ref(&write), &[]) };
     }
 }
 
@@ -87,7 +112,12 @@ impl DescriptorPool {
             .descriptor_count(100)
             .build();
 
-        let sizes = [storage_images, uniform_buffers, sampled_images];
+        let tlasses = vk::DescriptorPoolSize::builder()
+            .ty(vk::DescriptorType::ACCELERATION_STRUCTURE_KHR)
+            .descriptor_count(100)
+            .build();
+
+        let sizes = [storage_images, uniform_buffers, sampled_images, tlasses];
 
         let create_info = vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(&sizes)
