@@ -36,26 +36,22 @@ pub struct Mesh {
     indices: Buffer,
 }
 
+pub enum RenderMode {
+    Full,
+    // TODO: More render modes
+}
+
 #[repr(C)]
 pub struct UniformData {
-    // Randomly generated number to seed the PRNGs on the GPU
     seed: u32,
-
-    // How many samples we want to take for the path tracer
     samples: u32,
-
-    // The maximum amount of bounces we want to calculate for each path
     bounces: u32,
+    mode: u32,
 
-    // Dummy value, for better cache coherency
-    _dummy1: u32,
-
-    // Camera Settings
     focal_length: f32,
     aperture: f32,
     exposure: f32,
-    // More dummy values
-    _dummy2: u32,
+    time: f32,
 
     // Camera position
     pos: glam::Vec3A,
@@ -274,12 +270,12 @@ impl Raytracer {
                 seed,
                 samples: camera.samples,
                 bounces: camera.bounces,
-                _dummy1: 0,
+                mode: 0,
 
                 focal_length: camera.focal_length,
                 aperture: camera.aperture,
                 exposure: camera.exposure,
-                _dummy2: 0,
+                time: 0.0,
 
                 pos: camera.position.into(),
 

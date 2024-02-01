@@ -76,15 +76,16 @@ impl DescriptorSet {
 
     pub fn write_tlas(&self, tlas: DescriptorTLASWrite) {
         let handles = [tlas.reference.handle];
-        
+
         let tlas_write = vk::WriteDescriptorSetAccelerationStructureKHR {
             acceleration_structure_count: 1,
             p_acceleration_structures: handles.as_ptr(),
             ..Default::default()
         };
 
-        let ptr = (&tlas_write as *const vk::WriteDescriptorSetAccelerationStructureKHR).cast::<c_void>();
-        
+        let ptr =
+            (&tlas_write as *const vk::WriteDescriptorSetAccelerationStructureKHR).cast::<c_void>();
+
         let write = vk::WriteDescriptorSet {
             p_next: ptr,
             dst_set: self.handle,
@@ -93,7 +94,7 @@ impl DescriptorSet {
             descriptor_count: 1,
             descriptor_type: vk::DescriptorType::ACCELERATION_STRUCTURE_KHR,
             ..Default::default()
-        }; 
+        };
 
         unsafe {
             self.context

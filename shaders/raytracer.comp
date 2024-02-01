@@ -1,18 +1,19 @@
 #version 460
+#extension GL_EXT_buffer_reference : require
 #extension GL_EXT_ray_query : require
 
-// Shader Inputs (bound by the descriptor set on the CPU)
+
 layout(binding=0, rgba8) uniform image2D resultImage;
 layout(binding=1) uniform Uniforms { 
 	uint seed; 
 	uint samples;
 	uint bounces;
-	uint _dummy1;
+	uint mode;
 
 	float focal_length;
 	float aperture;
 	float exposure;
-	uint _dummy2;
+	float time;
 
 	vec4 pos;
 
@@ -20,6 +21,8 @@ layout(binding=1) uniform Uniforms {
 	mat4 inverseProj;
 } uniforms;
 layout(binding = 2) uniform accelerationStructureEXT tlas;
+
+
 
 // Global data
 struct Globals { uvec3 rngState; } globals;
@@ -51,14 +54,29 @@ vec3 pathtrace(Ray ray) {
 	vec3 result = vec3(0.0);
 	vec3 throughput = vec3(1.0);
 
-	for (int i = 0; i < uniforms.bounces; i++) { }
-	result = ray.dir;
+	rayQueryEXT rayQuery;
+
+	for (int i = 0; i < uniforms.bounces; i++) { 
+		rayQueryInitializeEXT(rayQuery, tlas, gl_RayFlagsOpaqueEXT, 0xFF, ray.origin, 0.0, ray.dir, 10000.0);              
+		while (rayQueryProceedEXT(rayQuery)) { }
+
+		// Check if we hit an object
+		if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT) {
+
+
+			result = vec3(1.0);
+		} else {
+			// If not, we have hit the sky. Shade it as such and break out of the loop.
+			break;
+		}
+	}
+
 	return result;
 }
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 void main() {
-	// Initialise global state
+	// Initialise global rng state
 	globals.rngState = uvec3(gl_GlobalInvocationID.x ^ 1534, gl_GlobalInvocationID.y + 432812 ^ 941, 329810 * uniforms.seed) ^ uniforms.seed | uint(1);
 	
 	// uv-space coordinates in the range [0, 1]
@@ -71,33 +89,6 @@ void main() {
 
 	vec3 color = vec3(0.0);
 
-	Ray ray;
-	ray.origin = uniforms.pos.xyz;
-
-	// Calculate ray direction from projection matrices
-	vec4 target = uniforms.inverseProj * vec4(coord, 1, 1);
-	vec4 phi = vec4(normalize(target.xyz / target.w), 0);
-	ray.dir = vec3(uniforms.inverseView * phi);
-
-	// Jitter the ndc ray direction sligtly, softening the edges of surfaces
-	ray.dir += (random() * 2.0 - 1.0) * 0.0001;
-
-	
-
-	rayQueryEXT rayQuery;
-  	rayQueryInitializeEXT(rayQuery,              // Ray query
-                        tlas,                  // Top-level acceleration structure
-                        gl_RayFlagsNoOpaqueEXT,  // Ray flags, here saying "treat all geometry as opaque"
-                        0xFF,                  // 8-bit instance mask, here saying "trace against all instances"
-                        ray.origin,             // Ray origin
-                        0.0,                   // Minimum t-value
-                        ray.dir,          // Ray direction
-                        10000.0);              // Maximum t-value
-
-	float i = 0.0;
-	while (rayQueryProceedEXT(rayQuery)) { i += 1; }
-
-	/*
 	for (int i = 0; i < uniforms.samples; i++) {
 		Ray ray;
 		ray.origin = uniforms.pos.xyz;
@@ -114,8 +105,7 @@ void main() {
 	}
 
 	color /= uniforms.samples;
-	*/
 
 	// Store the final result into the swapchain
-	imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(vec3(i), 1.0));
+	imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));
 }
