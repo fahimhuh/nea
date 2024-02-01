@@ -451,10 +451,6 @@ impl Raytracer {
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();
 
-            // FIXME: REMOVE THIS DEBUG CODE
-            let slice = unsafe { std::slice::from_raw_parts(ptr, object.vertices.len()) };
-            println!("{:?}", slice);
-
              // ---------- Copy Indices into GPU Buffer through staging buffer ------------------
 
             let ptr = staging.get_ptr().cast::<u32>().as_ptr();
