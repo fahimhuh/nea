@@ -52,7 +52,7 @@ impl Interface {
         std::mem::take(&mut self.last_output)
     }
 
-    pub fn  camera_ui(&mut self, world: &mut World) {
+    pub fn camera_ui(&mut self, world: &mut World) {
         egui::Window::new("Camera").show(&self.context(), |ui| {
             ui.label("Position");
             ui.horizontal(|ui| {
@@ -79,9 +79,9 @@ impl Interface {
                 ui.add(egui::DragValue::new(&mut rot.2).speed(0.1));
             });
 
-            world.camera.rotation = glam::Quat::from_euler(glam::EulerRot::XYZ, rot.0, rot.1, rot.2);
+            world.camera.rotation =
+                glam::Quat::from_euler(glam::EulerRot::XYZ, rot.0, rot.1, rot.2);
         });
-
     }
 
     pub fn scene_ui(&mut self) {

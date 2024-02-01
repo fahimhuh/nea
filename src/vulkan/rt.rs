@@ -47,7 +47,9 @@ impl AccelerationStructure {
             let geometry = vk::AccelerationStructureGeometryKHR::builder()
                 .geometry_type(vk::GeometryTypeKHR::TRIANGLES)
                 .flags(vk::GeometryFlagsKHR::OPAQUE)
-                .geometry(vk::AccelerationStructureGeometryDataKHR { triangles: *triangles })
+                .geometry(vk::AccelerationStructureGeometryDataKHR {
+                    triangles: *triangles,
+                })
                 .build();
 
             let range = vk::AccelerationStructureBuildRangeInfoKHR::builder()
@@ -132,7 +134,10 @@ impl AccelerationStructure {
 
             let cmds = command_pool.allocate();
             cmds.begin();
-            cmds.build_acceleration_structures(std::slice::from_ref(&build_info), &[std::slice::from_ref(&build.range)]);
+            cmds.build_acceleration_structures(
+                std::slice::from_ref(&build_info),
+                &[std::slice::from_ref(&build.range)],
+            );
 
             let barrier = vk::MemoryBarrier2 {
                 src_stage_mask: vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR,
@@ -277,7 +282,10 @@ impl AccelerationStructure {
         let fence = Fence::new(context.clone(), false);
         let cmds = command_pool.allocate();
         cmds.begin();
-        cmds.build_acceleration_structures(std::slice::from_ref(&build_info), &[std::slice::from_ref(&range)]);
+        cmds.build_acceleration_structures(
+            std::slice::from_ref(&build_info),
+            &[std::slice::from_ref(&range)],
+        );
         cmds.end();
         context.submit(&[cmds], None, None, Some(&fence));
         fence.wait_and_reset();

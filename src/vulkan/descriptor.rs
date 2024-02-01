@@ -29,8 +29,6 @@ pub struct DescriptorSet {
 
 impl DescriptorSet {
     pub fn write(&self, images: &[DescriptorImageWrite], buffers: &[DescriptorBufferWrite]) {
-        let mut writes = Vec::new();
-
         for image in images {
             let image_info = vk::DescriptorImageInfo {
                 sampler: image.sampler.unwrap_or(vk::Sampler::null()),
@@ -46,7 +44,11 @@ impl DescriptorSet {
                 .image_info(std::slice::from_ref(&image_info))
                 .build();
 
-            writes.push(write);
+            unsafe {
+                self.context
+                    .device
+                    .update_descriptor_sets(std::slice::from_ref(&write), &[])
+            };
         }
 
         for buffer in buffers {
@@ -55,20 +57,21 @@ impl DescriptorSet {
                 .offset(0)
                 .range(buffer.range)
                 .build();
+
             let write = vk::WriteDescriptorSet::builder()
                 .descriptor_type(buffer.buffer_kind)
                 .dst_array_element(0)
                 .dst_binding(buffer.binding)
                 .dst_set(self.handle)
-                .buffer_info(&[buffer_info])
+                .buffer_info(std::slice::from_ref(&buffer_info))
                 .build();
 
-            writes.push(write);
+            unsafe {
+                self.context
+                    .device
+                    .update_descriptor_sets(std::slice::from_ref(&write), &[])
+            };
         }
-
-        
-
-        unsafe { self.context.device.update_descriptor_sets(&writes, &[]) };
     }
 
     pub fn write_tlas(&self, tlas: DescriptorTLASWrite) {
@@ -86,7 +89,11 @@ impl DescriptorSet {
 
         write.descriptor_count = 1;
 
-        unsafe { self.context.device.update_descriptor_sets(std::slice::from_ref(&write), &[]) };
+        unsafe {
+            self.context
+                .device
+                .update_descriptor_sets(std::slice::from_ref(&write), &[])
+        };
     }
 }
 

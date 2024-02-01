@@ -44,7 +44,5 @@ impl World {
         }
     }
 
-    pub fn update(&mut self) {
-        
-    }
+    pub fn update(&mut self) {}
 }

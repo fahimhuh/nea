@@ -2,7 +2,18 @@ use super::frame::{Frame, FrameRef};
 use crate::{
     loader::{images::GpuImage, objects::GpuObject, SceneData, SceneLoader},
     vulkan::{
-        buffer::Buffer, command::{CommandList, CommandPool}, context::Context, descriptor::{DescriptorBinding, DescriptorBufferWrite, DescriptorImageWrite, DescriptorPool, DescriptorSet, DescriptorSetLayout, DescriptorTLASWrite}, image::Image, pipeline::{ComputePipeline, PipelineLayout}, rt::{AccelerationStructure, GeometryDescription, GeometryInstance}, shader::Shader, sync::Fence
+        buffer::Buffer,
+        command::{CommandList, CommandPool},
+        context::Context,
+        descriptor::{
+            DescriptorBinding, DescriptorBufferWrite, DescriptorImageWrite, DescriptorPool,
+            DescriptorSet, DescriptorSetLayout, DescriptorTLASWrite,
+        },
+        image::Image,
+        pipeline::{ComputePipeline, PipelineLayout},
+        rt::{AccelerationStructure, GeometryDescription, GeometryInstance},
+        shader::Shader,
+        sync::Fence,
     },
     world::{Camera, World},
 };
@@ -10,7 +21,9 @@ use ash::vk::{self, BufferImageCopy};
 use glam::Vec3Swizzles;
 use std::{cmp::max, sync::Arc, time::Instant};
 
-mod shader { include!(concat!(env!("OUT_DIR"), "/raytracer.comp.rs")); }
+mod shader {
+    include!(concat!(env!("OUT_DIR"), "/raytracer.comp.rs"));
+}
 
 pub struct Texture {
     image: Image,
@@ -89,7 +102,7 @@ impl Raytracer {
     pub fn new(context: Arc<Context>) -> Self {
         let command_pool = CommandPool::new(context.clone(), context.queue_family);
         let descriptor_pool = DescriptorPool::new(context.clone());
-        
+
         let bindings = vec![
             DescriptorBinding {
                 binding: 0,
@@ -110,7 +123,7 @@ impl Raytracer {
                 stage: vk::ShaderStageFlags::COMPUTE,
             },
         ];
-        
+
         let descriptor_layout = DescriptorSetLayout::new(context.clone(), bindings);
         let push_constants = vk::PushConstantRange {
             stage_flags: vk::ShaderStageFlags::COMPUTE,
@@ -123,7 +136,7 @@ impl Raytracer {
             push_constants,
             std::slice::from_ref(&descriptor_layout),
         );
-        
+
         let shader = Shader::new(
             context.clone(),
             &shader::CODE,
@@ -176,7 +189,7 @@ impl Raytracer {
         // Only raytrace if there is a scene to trace against!
         if self.tlas.is_some() {
             self.raytrace(cmds, frame, world);
-        } 
+        }
     }
 
     fn raytrace(&mut self, cmds: &CommandList, frame: &FrameRef, world: &World) {
@@ -200,7 +213,10 @@ impl Raytracer {
             }],
         );
 
-        descriptor_set.write_tlas(DescriptorTLASWrite { tlas: self.tlas.as_ref().unwrap(), binding: 2 });
+        descriptor_set.write_tlas(DescriptorTLASWrite {
+            tlas: self.tlas.as_ref().unwrap(),
+            binding: 2,
+        });
 
         let image_memory_barriers = [vk::ImageMemoryBarrier2 {
             src_stage_mask: vk::PipelineStageFlags2::NONE,
@@ -373,11 +389,7 @@ impl Raytracer {
         }
 
         let time = Instant::now() - start;
-        log::info!(
-            "Loaded {} textures in {:?}",
-            self.textures.len(),
-            time
-        );
+        log::info!("Loaded {} textures in {:?}", self.textures.len(), time);
     }
 
     fn load_objects(&mut self, frame: &FrameRef, objects: Vec<GpuObject>) {
