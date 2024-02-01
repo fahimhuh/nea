@@ -238,7 +238,8 @@ pub fn create_device(
 
     let mut features_rq = vk::PhysicalDeviceRayQueryFeaturesKHR::builder().ray_query(true);
 
-    let mut features_rqpf = vk::PhysicalDeviceRayTracingPositionFetchFeaturesKHR::builder().ray_tracing_position_fetch(true);
+    let mut features_rqpf = vk::PhysicalDeviceRayTracingPositionFetchFeaturesKHR::builder()
+        .ray_tracing_position_fetch(true);
 
     let create_info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_infos)

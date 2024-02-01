@@ -62,8 +62,6 @@ pub struct UniformData {
     inv_proj: glam::Mat4,
 }
 
-
-
 pub struct Raytracer {
     command_pool: CommandPool,
     descriptor_pool: DescriptorPool,
@@ -254,7 +252,12 @@ impl Raytracer {
 
         let seed = rand::random();
 
-        let rotation = glam::Quat::from_euler(glam::EulerRot::XYZ, camera.rotation.x, camera.rotation.y, camera.rotation.z);
+        let rotation = glam::Quat::from_euler(
+            glam::EulerRot::XYZ,
+            camera.rotation.x,
+            camera.rotation.y,
+            camera.rotation.z,
+        );
 
         let forward = rotation * glam::vec3(0.0, 0.0, 1.0);
         let up = rotation * glam::vec3(0.0, 1.0, 0.0);
@@ -387,7 +390,7 @@ impl Raytracer {
 
         let start = Instant::now();
         let mut geometries = Vec::with_capacity(objects.len());
-        for (index, object) in objects.iter().enumerate() {
+        for (_index, object) in objects.iter().enumerate() {
             // TODO: Refactor into individual functions
             // ------- Initialise Object Buffers --------------
             let size = max(
@@ -443,7 +446,7 @@ impl Raytracer {
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();
 
-             // ---------- Copy Indices into GPU Buffer through staging buffer ------------------
+            // ---------- Copy Indices into GPU Buffer through staging buffer ------------------
 
             let ptr = staging.get_ptr().cast::<u32>().as_ptr();
             unsafe { ptr.copy_from_nonoverlapping(object.indices.as_ptr(), object.indices.len()) }

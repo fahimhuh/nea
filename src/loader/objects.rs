@@ -15,7 +15,6 @@ pub fn load_objects(document: &Document, buffers: &[gltf::buffer::Data]) -> Vec<
             for primitive in mesh.primitives() {
                 let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
-                // FIXME: This may need to be transposed
                 let transform = glam::Mat4::from_cols_array_2d(&node.transform().matrix());
 
                 let vertices = reader

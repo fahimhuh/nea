@@ -82,7 +82,6 @@ impl Interface {
                 ui.label("Y FOV: ");
                 ui.add(egui::DragValue::new(&mut world.camera.fov));
             });
-
         });
     }
 
