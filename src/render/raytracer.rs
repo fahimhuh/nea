@@ -1,4 +1,4 @@
-use super::frame::{Frame, FrameRef};
+use super::frame::FrameRef;
 use crate::{
     loader::{images::GpuImage, objects::GpuObject, SceneData, SceneLoader},
     vulkan::{
@@ -38,7 +38,6 @@ pub struct Mesh {
 
 pub enum RenderMode {
     Full,
-    // TODO: More render modes
 }
 
 #[repr(C)]
@@ -63,15 +62,7 @@ pub struct UniformData {
     inv_proj: glam::Mat4,
 }
 
-pub struct RayTracer {
-    descriptor_pool: DescriptorPool,
-    descriptor_layout: DescriptorSetLayout,
-    pipeline_layout: PipelineLayout,
-    shader: Shader,
-    pipeline: ComputePipeline,
-    descriptor_sets: Vec<DescriptorSet>,
-    uniform_buffers: Vec<Buffer>,
-}
+
 
 pub struct Raytracer {
     command_pool: CommandPool,
@@ -124,7 +115,7 @@ impl Raytracer {
         let push_constants = vk::PushConstantRange {
             stage_flags: vk::ShaderStageFlags::COMPUTE,
             offset: 0,
-            size: 4,
+            size: std::mem::size_of::<u64>() as u32,
         };
 
         let pipeline_layout = PipelineLayout::new(
@@ -229,6 +220,7 @@ impl Raytracer {
         }];
 
         cmds.pipeline_barrier(&image_memory_barriers, &[]);
+
         cmds.bind_compute_pipeline(&self.pipeline);
         cmds.bind_descriptor_sets(
             vk::PipelineBindPoint::COMPUTE,
@@ -262,8 +254,10 @@ impl Raytracer {
 
         let seed = rand::random();
 
-        let forward = camera.rotation * glam::vec3(0.0, 0.0, 1.0);
-        let up = camera.rotation * glam::vec3(0.0, 1.0, 0.0);
+        let rotation = glam::Quat::from_euler(glam::EulerRot::XYZ, camera.rotation.x, camera.rotation.y, camera.rotation.z);
+
+        let forward = rotation * glam::vec3(0.0, 0.0, 1.0);
+        let up = rotation * glam::vec3(0.0, 1.0, 0.0);
 
         unsafe {
             ptr.write(UniformData {
@@ -393,7 +387,9 @@ impl Raytracer {
 
         let start = Instant::now();
         let mut geometries = Vec::with_capacity(objects.len());
-        for object in &objects {
+        for (index, object) in objects.iter().enumerate() {
+            // TODO: Refactor into individual functions
+            // ------- Initialise Object Buffers --------------
             let size = max(
                 object.indices.len() * std::mem::size_of::<u32>(),
                 object.vertices.len() * std::mem::size_of::<f32>(),
@@ -452,8 +448,6 @@ impl Raytracer {
             let ptr = staging.get_ptr().cast::<u32>().as_ptr();
             unsafe { ptr.copy_from_nonoverlapping(object.indices.as_ptr(), object.indices.len()) }
 
-            
-
             let cmds = self.command_pool.allocate();
             let region = vk::BufferCopy {
                 src_offset: 0,
@@ -467,6 +461,7 @@ impl Raytracer {
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();
 
+            // --------- Add to geometries to build a BVH for -----------------
             let geometry = GeometryDescription {
                 vertices: vertices.get_addr(),
                 indices: indices.get_addr(),
@@ -476,8 +471,8 @@ impl Raytracer {
 
             geometries.push(geometry);
 
+            // ------------------- Add mesh to mesh list -------------------------
             let mesh = Mesh { vertices, indices };
-
             self.meshes.push(mesh);
         }
         log::info!("Loaded {} meshes; Building meshes...", self.meshes.len());

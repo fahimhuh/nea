@@ -67,20 +67,22 @@ impl Interface {
             });
 
             ui.label("Rotation");
-            let mut rot = world.camera.rotation.to_euler(glam::EulerRot::XYZ);
             ui.horizontal(|ui| {
                 ui.label("X:");
-                ui.add(egui::DragValue::new(&mut rot.0).speed(0.1));
+                ui.add(egui::DragValue::new(&mut world.camera.rotation.x).speed(0.1));
 
                 ui.label("Y:");
-                ui.add(egui::DragValue::new(&mut rot.1).speed(0.1));
+                ui.add(egui::DragValue::new(&mut world.camera.rotation.y).speed(0.1));
 
                 ui.label("Z:");
-                ui.add(egui::DragValue::new(&mut rot.2).speed(0.1));
+                ui.add(egui::DragValue::new(&mut world.camera.rotation.z).speed(0.1));
             });
 
-            world.camera.rotation =
-                glam::Quat::from_euler(glam::EulerRot::XYZ, rot.0, rot.1, rot.2);
+            ui.horizontal(|ui| {
+                ui.label("Y FOV: ");
+                ui.add(egui::DragValue::new(&mut world.camera.fov));
+            });
+
         });
     }
 

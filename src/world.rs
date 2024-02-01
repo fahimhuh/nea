@@ -4,7 +4,7 @@ pub struct Object {}
 #[derive(Default, Debug)]
 pub struct Camera {
     pub position: glam::Vec3A,
-    pub rotation: glam::Quat,
+    pub rotation: glam::Vec3A,
 
     pub fov: f32,
     pub near: f32,
@@ -27,7 +27,7 @@ impl World {
     pub fn new() -> Self {
         let camera = Camera {
             position: glam::Vec3A::new(0.0, 0.0, -4.0),
-            rotation: glam::Quat::IDENTITY,
+            rotation: glam::Vec3A::default(),
             fov: 60.0,
             near: 0.01,
             far: 100.0,

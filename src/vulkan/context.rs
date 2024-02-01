@@ -216,6 +216,7 @@ pub fn create_device(
         ash::extensions::khr::AccelerationStructure::name().as_ptr(),
         ash::extensions::khr::DeferredHostOperations::name().as_ptr(),
         vk::KhrRayQueryFn::name().as_ptr(),
+        vk::KhrRayTracingPositionFetchFn::name().as_ptr(),
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         vk::KhrPortabilitySubsetFn::name().as_ptr(),
     ];
@@ -237,13 +238,16 @@ pub fn create_device(
 
     let mut features_rq = vk::PhysicalDeviceRayQueryFeaturesKHR::builder().ray_query(true);
 
+    let mut features_rqpf = vk::PhysicalDeviceRayTracingPositionFetchFeaturesKHR::builder().ray_tracing_position_fetch(true);
+
     let create_info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_infos)
         .enabled_extension_names(&extensions)
         .push_next(&mut features_1_2)
         .push_next(&mut features_1_3)
         .push_next(&mut features_as)
-        .push_next(&mut features_rq);
+        .push_next(&mut features_rq)
+        .push_next(&mut features_rqpf);
 
     unsafe {
         instance

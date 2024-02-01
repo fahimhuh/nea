@@ -62,7 +62,7 @@ impl AccelerationStructure {
             let build_info = vk::AccelerationStructureBuildGeometryInfoKHR::builder()
                 .ty(vk::AccelerationStructureTypeKHR::BOTTOM_LEVEL)
                 .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
-                .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
+                .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE | vk::BuildAccelerationStructureFlagsKHR::ALLOW_DATA_ACCESS)
                 .geometries(std::slice::from_ref(&geometry))
                 .build();
 
@@ -103,7 +103,7 @@ impl AccelerationStructure {
             let mut build_info = vk::AccelerationStructureBuildGeometryInfoKHR::builder()
                 .ty(vk::AccelerationStructureTypeKHR::BOTTOM_LEVEL)
                 .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
-                .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
+                .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE | vk::BuildAccelerationStructureFlagsKHR::ALLOW_DATA_ACCESS)
                 .geometries(std::slice::from_ref(&build.geometry))
                 .build();
 
@@ -223,7 +223,7 @@ impl AccelerationStructure {
             .build();
 
         let mut build_info = vk::AccelerationStructureBuildGeometryInfoKHR::builder()
-            .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
+            .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE | vk::BuildAccelerationStructureFlagsKHR::ALLOW_DATA_ACCESS)
             .geometries(std::slice::from_ref(&geometry))
             .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
             .ty(vk::AccelerationStructureTypeKHR::TOP_LEVEL)
