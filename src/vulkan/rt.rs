@@ -1,6 +1,6 @@
 use super::{buffer::Buffer, command::CommandPool, context::Context, sync::Fence};
 use ash::vk::{self, Packed24_8};
-use std::sync::Arc;
+use std::{ptr, sync::Arc};
 
 pub struct GeometryDescription {
     pub vertices: vk::DeviceAddress,
@@ -33,7 +33,7 @@ impl AccelerationStructure {
 
         for desc in descs {
             let triangles = vk::AccelerationStructureGeometryTrianglesDataKHR::builder()
-                .vertex_format(vk::Format::R32G32B32A32_SFLOAT)
+                .vertex_format(vk::Format::R32G32B32_SFLOAT)
                 .vertex_data(vk::DeviceOrHostAddressConstKHR {
                     device_address: desc.vertices,
                 })

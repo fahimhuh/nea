@@ -97,8 +97,6 @@ void main() {
 	float i = 0.0;
 	while (rayQueryProceedEXT(rayQuery)) { i += 1; }
 
-  	const float t = rayQueryGetIntersectionTEXT(rayQuery, true);
-
 	/*
 	for (int i = 0; i < uniforms.samples; i++) {
 		Ray ray;
@@ -119,5 +117,5 @@ void main() {
 	*/
 
 	// Store the final result into the swapchain
-	imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(ray.dir, 1.0));
+	imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(vec3(i), 1.0));
 }

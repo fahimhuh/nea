@@ -214,7 +214,7 @@ impl Raytracer {
         );
 
         descriptor_set.write_tlas(DescriptorTLASWrite {
-            tlas: self.tlas.as_ref().unwrap(),
+            reference: self.tlas.as_ref().unwrap(),
             binding: 2,
         });
 
@@ -433,6 +433,8 @@ impl Raytracer {
 
             let fence = Fence::new(frame.context.clone(), false);
 
+            // ---------- Copy Vertices into GPU Buffer through staging buffer ------------------
+
             let ptr = staging.get_ptr().cast::<f32>().as_ptr();
             unsafe { ptr.copy_from_nonoverlapping(object.vertices.as_ptr(), object.vertices.len()) }
 
@@ -449,8 +451,16 @@ impl Raytracer {
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();
 
+            // FIXME: REMOVE THIS DEBUG CODE
+            let slice = unsafe { std::slice::from_raw_parts(ptr, object.vertices.len()) };
+            println!("{:?}", slice);
+
+             // ---------- Copy Indices into GPU Buffer through staging buffer ------------------
+
             let ptr = staging.get_ptr().cast::<u32>().as_ptr();
-            unsafe { ptr.copy_from_nonoverlapping(object.indices.as_ptr(), object.vertices.len()) }
+            unsafe { ptr.copy_from_nonoverlapping(object.indices.as_ptr(), object.indices.len()) }
+
+            
 
             let cmds = self.command_pool.allocate();
             let region = vk::BufferCopy {
@@ -460,7 +470,7 @@ impl Raytracer {
             };
 
             cmds.begin();
-            cmds.copy_buffer(&staging, &vertices, &[region]);
+            cmds.copy_buffer(&staging, &indices, &[region]);
             cmds.end();
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();

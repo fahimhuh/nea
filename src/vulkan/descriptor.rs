@@ -1,6 +1,6 @@
 use super::{buffer::Buffer, context::Context, image::ImageView, rt::AccelerationStructure};
 use ash::vk;
-use std::sync::Arc;
+use std::{ffi::c_void, sync::Arc};
 
 pub struct DescriptorImageWrite<'a> {
     pub image_view: &'a ImageView,
@@ -18,7 +18,7 @@ pub struct DescriptorBufferWrite<'a> {
 }
 
 pub struct DescriptorTLASWrite<'a> {
-    pub tlas: &'a AccelerationStructure,
+    pub reference: &'a AccelerationStructure,
     pub binding: u32,
 }
 
@@ -75,19 +75,25 @@ impl DescriptorSet {
     }
 
     pub fn write_tlas(&self, tlas: DescriptorTLASWrite) {
-        let handle = tlas.tlas.handle;
-        let mut tlas_write = vk::WriteDescriptorSetAccelerationStructureKHR::builder()
-            .acceleration_structures(&[handle])
-            .build();
+        let handles = [tlas.reference.handle];
+        
+        let tlas_write = vk::WriteDescriptorSetAccelerationStructureKHR {
+            acceleration_structure_count: 1,
+            p_acceleration_structures: handles.as_ptr(),
+            ..Default::default()
+        };
 
-        let mut write = vk::WriteDescriptorSet::builder()
-            .descriptor_type(vk::DescriptorType::ACCELERATION_STRUCTURE_KHR)
-            .dst_array_element(0)
-            .dst_binding(tlas.binding)
-            .dst_set(self.handle)
-            .push_next(&mut tlas_write);
-
-        write.descriptor_count = 1;
+        let ptr = (&tlas_write as *const vk::WriteDescriptorSetAccelerationStructureKHR).cast::<c_void>();
+        
+        let write = vk::WriteDescriptorSet {
+            p_next: ptr,
+            dst_set: self.handle,
+            dst_binding: tlas.binding,
+            dst_array_element: 0,
+            descriptor_count: 1,
+            descriptor_type: vk::DescriptorType::ACCELERATION_STRUCTURE_KHR,
+            ..Default::default()
+        }; 
 
         unsafe {
             self.context
