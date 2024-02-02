@@ -1,6 +1,6 @@
 use super::{buffer::Buffer, command::CommandPool, context::Context, sync::Fence};
 use ash::vk::{self, Packed24_8};
-use std::{sync::Arc};
+use std::sync::Arc;
 
 pub struct GeometryDescription {
     pub vertices: vk::DeviceAddress,
@@ -18,6 +18,7 @@ struct BlasBuild {
 pub struct GeometryInstance {
     pub transform: glam::Mat4,
     pub blas: vk::DeviceAddress,
+    pub index: u32,
 }
 
 pub struct AccelerationStructure {
@@ -188,7 +189,7 @@ impl AccelerationStructure {
 
             let instance = vk::AccelerationStructureInstanceKHR {
                 transform,
-                instance_custom_index_and_mask: Packed24_8::new(0, 0xFF),
+                instance_custom_index_and_mask: Packed24_8::new(object.index, 0xFF),
                 instance_shader_binding_table_record_offset_and_flags: Packed24_8::new(0, 0),
                 acceleration_structure_reference: vk::AccelerationStructureReferenceKHR {
                     device_handle: object.blas,

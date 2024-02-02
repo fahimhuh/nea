@@ -24,7 +24,15 @@ struct Ray {
 	vec3 dir;
 };
 
+struct Material {
+	vec4 baseColor;
+	vec4 emissive;
+	float roughness;
+	float metallic;
+};
+
 struct HitInfo {
 	vec3 pos;
 	vec3 normal;
+	Material material;
 };

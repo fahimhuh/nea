@@ -5,6 +5,11 @@ pub struct GpuObject {
     pub indices: Vec<u32>,
 
     pub transform: glam::Mat4,
+
+    pub base_color: glam::Vec3A,
+    pub emissive: glam::Vec3A,
+    pub roughness: f32,
+    pub metallic: f32,
 }
 
 pub fn load_objects(document: &Document, buffers: &[gltf::buffer::Data]) -> Vec<GpuObject> {
@@ -30,10 +35,23 @@ pub fn load_objects(document: &Document, buffers: &[gltf::buffer::Data]) -> Vec<
                     .into_u32()
                     .collect::<Vec<u32>>();
 
+                let pbr = primitive.material().pbr_metallic_roughness();
+
+                let base_color = glam::Vec3A::from_slice(&pbr.base_color_factor());
+                let roughness = pbr.roughness_factor();
+                let metallic = pbr.metallic_factor();
+                let emissive = glam::Vec3A::from_array(primitive.material().emissive_factor());
+
                 let object = GpuObject {
                     vertices,
                     indices,
+
                     transform,
+
+                    base_color,
+                    emissive,
+                    roughness,
+                    metallic,
                 };
 
                 objects.push(object);

@@ -36,6 +36,14 @@ pub struct Mesh {
     indices: Buffer,
 }
 
+#[repr(C)]
+pub struct Material {
+    base_color: glam::Vec3A,
+    emissive: glam::Vec3A,
+    roughness: f32,
+    metallic: f32,
+}
+
 pub enum RenderMode {
     Full,
 }
@@ -75,6 +83,7 @@ pub struct Raytracer {
     descriptor_sets: Vec<DescriptorSet>,
 
     uniform_buffers: Vec<Buffer>,
+    material_buffer: Buffer,
 
     textures: Vec<Texture>,
     meshes: Vec<Mesh>,
@@ -105,6 +114,12 @@ impl Raytracer {
                 binding: 2,
                 count: 1,
                 kind: vk::DescriptorType::ACCELERATION_STRUCTURE_KHR,
+                stage: vk::ShaderStageFlags::COMPUTE,
+            },
+            DescriptorBinding {
+                binding: 3,
+                count: 1,
+                kind: vk::DescriptorType::STORAGE_BUFFER,
                 stage: vk::ShaderStageFlags::COMPUTE,
             },
         ];
@@ -149,6 +164,14 @@ impl Raytracer {
         let blasses = Vec::new();
         let tlas = None;
 
+        let material_buffer = Buffer::new(
+            context.clone(),
+            (std::mem::size_of::<Material>() * 4096) as u64,
+            vk::BufferUsageFlags::STORAGE_BUFFER,
+            gpu_allocator::MemoryLocation::CpuToGpu,
+            &format!("Material Buffer"),
+        );
+
         Self {
             command_pool,
             textures,
@@ -162,6 +185,7 @@ impl Raytracer {
             pipeline,
             descriptor_sets,
             uniform_buffers,
+            material_buffer,
         }
     }
 
@@ -190,12 +214,21 @@ impl Raytracer {
                 sampler: None,
                 image_kind: vk::DescriptorType::STORAGE_IMAGE,
             }],
-            &[DescriptorBufferWrite {
-                buffer_kind: vk::DescriptorType::UNIFORM_BUFFER,
-                buffer: uniform_buffer,
-                range: std::mem::size_of::<UniformData>() as u64,
-                binding: 1,
-            }],
+            &[
+                DescriptorBufferWrite {
+                    buffer_kind: vk::DescriptorType::UNIFORM_BUFFER,
+                    buffer: uniform_buffer,
+                    range: std::mem::size_of::<UniformData>() as u64,
+                    binding: 1,
+                },
+                DescriptorBufferWrite {
+                    buffer_kind: vk::DescriptorType::STORAGE_BUFFER,
+                    buffer: &self.material_buffer,
+                    // TODO: Make material buffer size a constant
+                    range: (std::mem::size_of::<Material>() * 4096) as u64,
+                    binding: 3,
+                },
+            ],
         );
 
         descriptor_set.write_tlas(DescriptorTLASWrite {
@@ -390,7 +423,7 @@ impl Raytracer {
 
         let start = Instant::now();
         let mut geometries = Vec::with_capacity(objects.len());
-        for (_index, object) in objects.iter().enumerate() {
+        for (index, object) in objects.iter().enumerate() {
             // TODO: Refactor into individual functions
             // ------- Initialise Object Buffers --------------
             let size = max(
@@ -464,6 +497,22 @@ impl Raytracer {
             frame.context.submit(&[cmds], None, None, Some(&fence));
             fence.wait_and_reset();
 
+            // ------------------ Copy material data -------------------------------------------
+            let ptr = unsafe {
+                self.material_buffer
+                    .get_ptr()
+                    .cast::<Material>()
+                    .as_ptr()
+                    .offset(index as isize)
+            };
+            let material = Material {
+                base_color: object.base_color,
+                emissive: object.emissive,
+                roughness: object.roughness,
+                metallic: object.metallic,
+            };
+            unsafe { ptr.write(material) };
+
             // --------- Add to geometries to build a BVH for -----------------
             let geometry = GeometryDescription {
                 vertices: vertices.get_addr(),
@@ -489,6 +538,7 @@ impl Raytracer {
             let instance = GeometryInstance {
                 transform: object.transform,
                 blas: blasses[index].get_addr(),
+                index: index as u32,
             };
 
             instances.push(instance)
