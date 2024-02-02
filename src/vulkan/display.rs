@@ -4,7 +4,7 @@ use super::{
     sync::Semaphore,
 };
 use ash::{
-    extensions::khr::{Surface, Swapchain, Win32Surface},
+    extensions::{ext::MetalSurface, khr::{Surface, Swapchain, Win32Surface}},
     vk,
 };
 use glam::UVec2;

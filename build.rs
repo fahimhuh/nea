@@ -2,7 +2,7 @@ use shaderc::ShaderKind;
 use std::{
     env,
     fs::{self, File},
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -10,8 +10,8 @@ type ShaderInfo = (&'static str, ShaderKind);
 
 const SHADER_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/shaders");
 const SHADERS: [ShaderInfo; 3] = [
-    ("interface.frag", ShaderKind::Fragment),
-    ("interface.vert", ShaderKind::Vertex),
+    ("interface/interface.frag", ShaderKind::Fragment),
+    ("interface/interface.vert", ShaderKind::Vertex),
     ("raytracer.comp", ShaderKind::Compute),
 ];
 
@@ -28,6 +28,7 @@ fn main() {
         let mut compile_options = shaderc::CompileOptions::new().unwrap();
         compile_options.set_generate_debug_info();
         compile_options.set_optimization_level(shaderc::OptimizationLevel::Performance);
+        compile_options.set_include_callback(shader_include_callback);
 
         let artifact = compiler
             .compile_into_spirv(&code, stage, name, "main", Some(&compile_options))
@@ -58,4 +59,28 @@ fn write_spirv(module: &mut File, code: &[u32]) {
         code
     )
     .unwrap();
+}
+
+pub fn shader_include_callback(
+    name: &str,
+    _kind: shaderc::IncludeType,
+    _original: &str,
+    _depth: usize,
+) -> shaderc::IncludeCallbackResult {
+    // Search for shaders relative to the project directory
+    const SHADER_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/shaders");
+
+    let mut path = PathBuf::from(SHADER_DIR);
+    path.push(name);
+
+    let mut content = String::new();
+    let mut file = File::open(path).unwrap();
+    file.read_to_string(&mut content).unwrap();
+
+    let resolved_name = name.to_string();
+
+    Ok(shaderc::ResolvedInclude {
+        resolved_name,
+        content,
+    })
 }
