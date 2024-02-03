@@ -203,7 +203,7 @@ impl Raytracer {
 
     fn raytrace(&mut self, cmds: &CommandList, frame: &FrameRef, world: &World) {
         let uniform_buffer = self.uniform_buffers.get(frame.index()).unwrap();
-        self.update_uniform_buffer(frame, uniform_buffer, &world.camera);
+        self.update_uniform_buffer(frame, uniform_buffer, world);
 
         let descriptor_set = self.descriptor_sets.get(frame.index()).unwrap();
         descriptor_set.write(
@@ -277,7 +277,7 @@ impl Raytracer {
         cmds.pipeline_barrier(&image_memory_barriers, &[]);
     }
 
-    fn update_uniform_buffer(&self, frame: &FrameRef, buffer: &Buffer, camera: &Camera) {
+    fn update_uniform_buffer(&self, frame: &FrameRef, buffer: &Buffer, world: &World) {
         let ptr = buffer.get_ptr().cast::<UniformData>().as_ptr();
 
         let aspect = frame.display.dims.as_vec2();
@@ -285,36 +285,29 @@ impl Raytracer {
 
         let seed = rand::random();
 
-        let rotation = glam::Quat::from_euler(
-            glam::EulerRot::XYZ,
-            camera.rotation.x,
-            camera.rotation.y,
-            camera.rotation.z,
-        );
-
-        let forward = rotation * glam::vec3(0.0, 0.0, 1.0);
-        let up = rotation * glam::vec3(0.0, 1.0, 0.0);
+        let forward = world.camera.rotation * glam::vec3(0.0, 0.0, 1.0);
+        let up = world.camera.rotation * glam::vec3(0.0, 1.0, 0.0);
 
         unsafe {
             ptr.write(UniformData {
                 seed,
-                samples: camera.samples,
-                bounces: camera.bounces,
+                samples: world.settings.samples,
+                bounces: world.settings.bounces,
                 mode: 0,
 
-                focal_length: camera.focal_length,
-                aperture: camera.aperture,
-                exposure: camera.exposure,
+                focal_length: world.settings.focal_length,
+                aperture: world.settings.aperture,
+                exposure: world.settings.exposure,
                 time: 0.0,
 
-                pos: camera.position.into(),
+                pos: world.camera.position.into(),
 
-                inv_view: glam::Mat4::look_to_lh(camera.position.into(), forward, up).inverse(),
+                inv_view: glam::Mat4::look_to_lh(world.camera.position.into(), forward, up).inverse(),
                 inv_proj: glam::Mat4::perspective_lh(
-                    f32::to_radians(camera.fov),
+                    f32::to_radians(world.settings.fov),
                     aspect_ratio,
-                    camera.near,
-                    camera.far,
+                    world.settings.near,
+                    world.settings.far,
                 )
                 .inverse(),
             })

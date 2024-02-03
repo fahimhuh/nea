@@ -77,6 +77,7 @@ fn load_task() -> anyhow::Result<SceneData> {
         anyhow::bail!("Scene load cancelled")
     };
 
+    log::info!("Loading file..");
     let (document, buffers, images) = gltf::import(&file)?;
 
     let mut gpu_images = Vec::with_capacity(images.len());

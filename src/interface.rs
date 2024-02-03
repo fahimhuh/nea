@@ -1,4 +1,9 @@
-use crate::{loader::SceneLoader, world::World};
+use crate::{
+    input::{Input, Inputs},
+    loader::SceneLoader,
+    world::World,
+};
+use crossbeam_channel::Sender;
 use winit::{event::WindowEvent, window::Window};
 
 pub struct Interface {
@@ -26,8 +31,11 @@ impl Interface {
         }
     }
 
-    pub fn handle_event(&mut self, window: &Window, event: WindowEvent) {
-        let _response = self.window_integration.on_window_event(window, &event);
+    pub fn handle_event(&mut self, window: &Window, event: WindowEvent, inputs: &Inputs) {
+        let response = self.window_integration.on_window_event(window, &event);
+        if !response.consumed {
+            inputs.broadcaster.try_send(Input::from_window_event(event));
+        }
     }
 
     pub fn update(&mut self, window: &Window, world: &mut World) {
@@ -54,34 +62,26 @@ impl Interface {
 
     pub fn camera_ui(&mut self, world: &mut World) {
         egui::Window::new("Camera").show(&self.context(), |ui| {
-            ui.label("Position");
-            ui.horizontal(|ui| {
-                ui.label("X:");
-                ui.add(egui::DragValue::new(&mut world.camera.position.x));
+            // TODO: ===================== REPLACE BELOW WITH ACTUAL CAMERA INPUTS =========================
 
-                ui.label("Y:");
-                ui.add(egui::DragValue::new(&mut world.camera.position.y));
+            // TODO: ===================== REPLACE AVOVE WITH ACTUAL CAMERA INPUTS =========================
 
-                ui.label("Z:");
-                ui.add(egui::DragValue::new(&mut world.camera.position.z));
-            });
+            egui::Grid::new("Camera UI")
+                .striped(true)
+                .num_columns(2)
+                .show(ui, |ui| {
+                    ui.label("Y FOV: ");
+                    ui.add(egui::DragValue::new(&mut world.settings.fov));
+                    ui.end_row();
 
-            ui.label("Rotation");
-            ui.horizontal(|ui| {
-                ui.label("X:");
-                ui.add(egui::DragValue::new(&mut world.camera.rotation.x).speed(0.1));
+                    ui.label("Sample count: ");
+                    ui.add(egui::DragValue::new(&mut world.settings.samples));
+                    ui.end_row();
 
-                ui.label("Y:");
-                ui.add(egui::DragValue::new(&mut world.camera.rotation.y).speed(0.1));
-
-                ui.label("Z:");
-                ui.add(egui::DragValue::new(&mut world.camera.rotation.z).speed(0.1));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Y FOV: ");
-                ui.add(egui::DragValue::new(&mut world.camera.fov));
-            });
+                    ui.label("Bounces simulated: ");
+                    ui.add(egui::DragValue::new(&mut world.settings.bounces));
+                    ui.end_row();
+                });
         });
     }
 

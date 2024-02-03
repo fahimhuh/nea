@@ -1,3 +1,4 @@
+use input::{Input, Inputs};
 use interface::Interface;
 use loader::SceneLoader;
 use render::Renderer;
@@ -8,6 +9,7 @@ use winit::{
 };
 use world::World;
 
+mod input;
 mod interface;
 mod loader;
 mod render;
@@ -18,15 +20,13 @@ fn main() {
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .init();
-
     SceneLoader::init();
-
     let event_loop = EventLoop::new().unwrap();
     let window = Window::new(&event_loop).unwrap();
     window.set_resizable(false);
-
-    let mut world = World::new();
+    let inputs = Inputs::new();
     let mut renderer = Renderer::new(&window);
+    let mut world = World::new();
     let mut interface = Interface::new(&window);
 
     event_loop
@@ -34,16 +34,20 @@ fn main() {
             target.set_control_flow(ControlFlow::Poll);
 
             match event {
-                Event::WindowEvent {
-                    window_id: _,
-                    event,
-                } => match event {
+                
+                // Handle device events
+                Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => target.exit(),
-                    event => interface.handle_event(&window, event),
+                    event => interface.handle_event(&window, event, &inputs),
                 },
 
+                Event::DeviceEvent { event, .. } => {
+                    inputs.broadcaster.try_send(Input::from_device_event(event));
+                }
+
+                // Main application loop
                 Event::AboutToWait => {
-                    world.update();
+                    world.update(&inputs);
                     interface.update(&window, &mut world);
                     renderer.render(&world, &mut interface);
                 }
