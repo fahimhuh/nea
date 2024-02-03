@@ -1,13 +1,12 @@
-use crossbeam_channel::Receiver;
-use glam::vec3;
-use winit::{event::WindowEvent, keyboard::KeyCode};
-
 use crate::input::{Input, Inputs};
+use winit::keyboard::KeyCode;
 
-#[derive(Default, Debug)]
-pub struct Object {}
+pub struct Object {
+    pub position: glam::Vec3A,
+    pub rotation: glam::Vec3A,
+    pub scale: glam::Vec3A,
+}
 
-#[derive(Default, Debug)]
 pub struct Camera {
     pub position: glam::Vec3A,
     pub rotation: glam::Quat,
@@ -28,7 +27,7 @@ pub struct RenderSettings {
 
 pub struct World {
     pub camera: Camera,
-    pub settings: RenderSettings, 
+    pub settings: RenderSettings,
     pub objects: Vec<Object>,
 }
 
@@ -64,31 +63,40 @@ impl World {
         let right = self.camera.rotation * glam::vec3a(1.0, 0.0, 0.0);
         let forward = self.camera.rotation * glam::vec3a(0.0, 0.0, 1.0);
 
-        for event in inputs.listener.try_iter() {            
+        for event in inputs.listener.try_iter() {
             match event {
-
                 Input::Keyboard(key) => {
-                    if key == KeyCode::KeyW { self.camera.position += forward * CAM_SPEED }
-                    if key == KeyCode::KeyS { self.camera.position -= forward * CAM_SPEED }
-                    
-                    if key == KeyCode::KeyD { self.camera.position += right * CAM_SPEED }
-                    if key == KeyCode::KeyA { self.camera.position -= right * CAM_SPEED }
+                    if key == KeyCode::KeyW {
+                        self.camera.position += forward * CAM_SPEED
+                    }
+                    if key == KeyCode::KeyS {
+                        self.camera.position -= forward * CAM_SPEED
+                    }
 
-                    if key == KeyCode::Space { self.camera.position.y += CAM_SPEED };
-                    if key == KeyCode::ShiftLeft { self.camera.position.y -= CAM_SPEED };
-                    
-                },
+                    if key == KeyCode::KeyD {
+                        self.camera.position += right * CAM_SPEED
+                    }
+                    if key == KeyCode::KeyA {
+                        self.camera.position -= right * CAM_SPEED
+                    }
+
+                    if key == KeyCode::Space {
+                        self.camera.position.y += CAM_SPEED
+                    };
+                    if key == KeyCode::ShiftLeft {
+                        self.camera.position.y -= CAM_SPEED
+                    };
+                }
 
                 Input::Mouse(delta) => {
                     // Convert the delta from f64s to f32s
                     let movement = delta.as_vec2() * CAM_SENS;
-                    
+
                     let pitch = glam::Quat::from_rotation_x(-movement.y);
                     let yaw = glam::Quat::from_rotation_y(movement.x);
 
                     self.camera.rotation = pitch * self.camera.rotation * yaw;
-                    
-                },
+                }
 
                 Input::Unknown => (),
             }

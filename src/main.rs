@@ -34,7 +34,6 @@ fn main() {
             target.set_control_flow(ControlFlow::Poll);
 
             match event {
-                
                 // Handle device events
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => target.exit(),
@@ -42,7 +41,7 @@ fn main() {
                 },
 
                 Event::DeviceEvent { event, .. } => {
-                    inputs.broadcaster.try_send(Input::from_device_event(event));
+                    let _ = inputs.broadcaster.try_send(Input::from_device_event(event));
                 }
 
                 // Main application loop

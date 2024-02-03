@@ -3,7 +3,7 @@ use crate::{
     loader::SceneLoader,
     world::World,
 };
-use crossbeam_channel::Sender;
+
 use winit::{event::WindowEvent, window::Window};
 
 pub struct Interface {
