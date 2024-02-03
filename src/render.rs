@@ -39,7 +39,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, world: &World, interface: &mut Interface) {
+    pub fn render(&mut self, world: &mut World, interface: &mut Interface) {
         let mut frame = self.frames.next();
         let cmds = frame.allocate_command_list();
 

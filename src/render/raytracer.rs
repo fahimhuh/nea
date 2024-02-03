@@ -15,7 +15,7 @@ use crate::{
         shader::Shader,
         sync::Fence,
     },
-    world::{Camera, World},
+    world::World,
 };
 use ash::vk::{self, BufferImageCopy};
 use glam::Vec3Swizzles;
@@ -167,8 +167,8 @@ impl Raytracer {
         let material_buffer = Buffer::new(
             context.clone(),
             (std::mem::size_of::<Material>() * 4096) as u64,
-            vk::BufferUsageFlags::STORAGE_BUFFER,
-            gpu_allocator::MemoryLocation::CpuToGpu,
+            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
+            gpu_allocator::MemoryLocation::GpuOnly,
             &format!("Material Buffer"),
         );
 
@@ -492,7 +492,7 @@ impl Raytracer {
 
             // ------------------ Copy material data -------------------------------------------
             let ptr = unsafe {
-                self.material_buffer
+                staging
                     .get_ptr()
                     .cast::<Material>()
                     .as_ptr()
@@ -505,6 +505,20 @@ impl Raytracer {
                 metallic: object.metallic,
             };
             unsafe { ptr.write(material) };
+
+            let cmds = self.command_pool.allocate();
+            let byte_offset = (std::mem::size_of::<Material>() * index) as u64 ;
+            let region = vk::BufferCopy {
+                src_offset: byte_offset,
+                dst_offset: byte_offset,
+                size: (std::mem::size_of::<Material>()) as u64,
+            };
+
+            cmds.begin();
+            cmds.copy_buffer(&staging, &self.material_buffer, &[region]);
+            cmds.end();
+            frame.context.submit(&[cmds], None, None, Some(&fence));
+            fence.wait_and_reset();
 
             // --------- Add to geometries to build a BVH for -----------------
             let geometry = GeometryDescription {

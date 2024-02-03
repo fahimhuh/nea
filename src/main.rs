@@ -49,7 +49,7 @@ fn main() {
                 Event::AboutToWait => {
                     world.update(&inputs);
                     interface.update(&window, &mut world);
-                    renderer.render(&world, &mut interface);
+                    renderer.render(&mut world, &mut interface);
                 }
 
                 _ => (),
