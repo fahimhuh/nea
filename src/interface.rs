@@ -5,7 +5,6 @@ use crate::{
 };
 use winit::{event::WindowEvent, window::Window};
 
-
 // This struct is used to store the interface, which is the construct that integrates this program with the egui library
 // It contains all the egui objects and state that are used to render the interface, so the usage of the library is contained
 // into one module.

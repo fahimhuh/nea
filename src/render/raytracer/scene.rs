@@ -1,7 +1,5 @@
-use std::{ptr, sync::Arc};
-
 use crate::{
-    loader::{objects::GpuObject, SceneData},
+    loader::{GpuObject, SceneData},
     vulkan::{
         buffer::Buffer,
         command::CommandPool,
@@ -11,8 +9,8 @@ use crate::{
         sync::Fence,
     },
 };
-use ash::vk::{self, BufferImageCopy};
-use glam::Vec3Swizzles;
+use ash::vk;
+use std::{ptr, sync::Arc};
 
 pub struct Texture {
     image: Image,
