@@ -43,24 +43,23 @@ pub struct Scene {
 }
 
 impl Scene {
-	pub const MATERIAL_BUFFER_SIZE: u64 = (std::mem::size_of::<Material>() * 4096) as u64;
-
+    pub const MATERIAL_BUFFER_SIZE: u64 = (std::mem::size_of::<Material>() * 4096) as u64;
 
     pub fn load(context: Arc<Context>, data: SceneData) -> Self {
         let command_pool = CommandPool::new(context.clone(), context.queue_family);
         let textures = Self::upload_textures(&context, &command_pool, data.images);
-		let meshes = Self::build_meshes(&context, &command_pool, &data.objects);
-		let materials = Self::upload_materials(&context, &data.objects);
+        let meshes = Self::build_meshes(&context, &command_pool, &data.objects);
+        let materials = Self::upload_materials(&context, &data.objects);
 
-		let tlas = Self::build_tlas(&context, &command_pool, &data.objects, &meshes);
+        let tlas = Self::build_tlas(&context, &command_pool, &data.objects, &meshes);
 
-		Self {
-			textures,
-			meshes,
-			materials,
-			tlas
-		}
-	}
+        Self {
+            textures,
+            meshes,
+            materials,
+            tlas,
+        }
+    }
 
     fn upload_textures(
         context: &Arc<Context>,
@@ -156,7 +155,11 @@ impl Scene {
         textures
     }
 
-    fn build_meshes(context: &Arc<Context>, command_pool: &CommandPool, objects: &Vec<GpuObject>) -> Vec<Mesh> {
+    fn build_meshes(
+        context: &Arc<Context>,
+        command_pool: &CommandPool,
+        objects: &Vec<GpuObject>,
+    ) -> Vec<Mesh> {
         let mut descs = Vec::new();
         let mut buffer_pairs = Vec::new();
         for (_index, object) in objects.iter().enumerate() {
@@ -261,12 +264,11 @@ impl Scene {
             })
             .collect::<Vec<Mesh>>();
 
-		meshes
+        meshes
     }
 
-	fn upload_materials(context: &Arc<Context>, objects: &Vec<GpuObject>) -> Buffer {
-
-		let material_buffer = Buffer::new(
+    fn upload_materials(context: &Arc<Context>, objects: &Vec<GpuObject>) -> Buffer {
+        let material_buffer = Buffer::new(
             context.clone(),
             Self::MATERIAL_BUFFER_SIZE,
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
@@ -274,8 +276,8 @@ impl Scene {
             &format!("Material Buffer"),
         );
 
-		for (index, object) in objects.iter().enumerate() {
-			let ptr = unsafe {
+        for (index, object) in objects.iter().enumerate() {
+            let ptr = unsafe {
                 material_buffer
                     .get_ptr()
                     .cast::<Material>()
@@ -288,19 +290,23 @@ impl Scene {
                 emissive: object.emissive,
                 roughness: object.roughness,
                 metallic: object.metallic,
-            
-			};
+            };
             unsafe { ptr.write(material) };
-		}
+        }
 
-		material_buffer
-	}
+        material_buffer
+    }
 
-	fn build_tlas(context: &Arc<Context>, _command_pool: &CommandPool, objects: &Vec<GpuObject>, meshes: &[Mesh]) -> AccelerationStructure {
-		let mut instances = Vec::with_capacity(objects.len());
+    fn build_tlas(
+        context: &Arc<Context>,
+        _command_pool: &CommandPool,
+        objects: &Vec<GpuObject>,
+        meshes: &[Mesh],
+    ) -> AccelerationStructure {
+        let mut instances = Vec::with_capacity(objects.len());
 
         for (index, object) in objects.iter().enumerate() {
-			let instance = GeometryInstance {
+            let instance = GeometryInstance {
                 transform: object.transform,
                 blas: meshes[index].blas.get_addr(),
                 index: index as u32,
@@ -308,8 +314,8 @@ impl Scene {
 
             instances.push(instance)
         }
-		
-		let tlas = AccelerationStructure::build_top_level(context.clone(), &instances);
-		tlas
-	}
+
+        let tlas = AccelerationStructure::build_top_level(context.clone(), &instances);
+        tlas
+    }
 }

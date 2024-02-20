@@ -2,9 +2,9 @@ use self::{scene::Scene, shaders::Uniforms};
 
 use super::frame::FrameRef;
 use crate::{
-    loader::{SceneLoader},
+    loader::SceneLoader,
     vulkan::{
-        command::{CommandList},
+        command::CommandList,
         context::Context,
         descriptor::{
             DescriptorBinding, DescriptorBufferWrite, DescriptorImageWrite, DescriptorPool,
@@ -18,14 +18,13 @@ use crate::{
 };
 use ash::vk::{self};
 
-use std::{sync::Arc};
+use std::sync::Arc;
 
 mod scene;
 mod shaders;
 mod shader {
     include!(concat!(env!("OUT_DIR"), "/raytracer.comp.rs"));
 }
-
 
 pub struct Raytracer {
     descriptor_pool: DescriptorPool,
