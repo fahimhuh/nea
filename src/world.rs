@@ -40,8 +40,7 @@ pub struct World {
 
 impl World {
     // Create a new world
-    pub fn new() -> Self 
-    {
+    pub fn new() -> Self {
         // Create a new camera
         let camera = Camera {
             position: glam::Vec3A::new(0.0, 0.0, -4.0),

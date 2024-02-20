@@ -7,25 +7,46 @@ use super::{
 use ash::vk;
 use std::sync::Arc;
 
+// A Vulkan command pool represents a collection of command buffers that can be allocated and managed together.
+// It is used to manage the memory and state of command buffers, which are used to record and execute commands on the GPU.
+//
+// Command pools are created from a Vulkan device and are associated with a specific queue family index.
+// They provide a way to efficiently allocate and manage command buffers for a specific queue family.
+//
+// Command pools can be used to allocate command buffers for various types of operations, such as graphics rendering, compute operations, or transfer operations.
+// Each command buffer allocated from a command pool can only be used with the queue family that the command pool is associated with.
+//
+// When a command pool is no longer needed, it should be destroyed to free up the associated resources.
+// This is done by implementing the `Drop` trait for the `CommandPool` struct.
 pub struct CommandPool {
+    // A handle to the Vulkan Context
     context: Arc<Context>,
+    // A handle to the Vulkan Command Pool
     pub handle: vk::CommandPool,
 }
 
 impl CommandPool {
+    // Create a new command pool from a Vulkan context and a queue family index
     pub fn new(context: Arc<Context>, queue_family: u32) -> Self {
+        // Create a new command pool
         let create_info = vk::CommandPoolCreateInfo::builder()
             .queue_family_index(queue_family)
+            // Set the command pool to be transient, which means that command buffers allocated from the pool will be short-lived and can be re-used more efficiently
             .flags(vk::CommandPoolCreateFlags::TRANSIENT);
+
+        // Create the command pool from the Vulkan device
         let handle = unsafe {
             context
                 .device
                 .create_command_pool(&create_info, None)
                 .unwrap()
         };
+
+        // Return the new command pool
         Self { context, handle }
     }
 
+    // Reset the command pool, freeing all of the command buffers that have been allocated from it
     pub fn reset(&self) {
         unsafe {
             self.context
@@ -35,6 +56,7 @@ impl CommandPool {
         }
     }
 
+    // Allocate a new command buffer from the command pool
     pub fn allocate(&self) -> CommandList {
         let allocate_info = vk::CommandBufferAllocateInfo::builder()
             .command_buffer_count(1)
@@ -53,16 +75,22 @@ impl CommandPool {
 
 impl Drop for CommandPool {
     fn drop(&mut self) {
+        // Destroy the command pool when it is no longer needed
         unsafe { self.context.device.destroy_command_pool(self.handle, None) }
     }
 }
 
+// A Vulkan command list represents a collection of commands that can be recorded and executed on the GPU.
+// It is used to record and execute commands for various types of operations, such as graphics rendering, compute operations, or transfer operations.
 pub struct CommandList {
+    // A handle to the Vulkan Context
     pub context: Arc<Context>,
+    // A handle to the Vulkan Command Buffer
     pub handle: vk::CommandBuffer,
 }
 
 impl CommandList {
+    // Begin recording commands into the command buffer
     pub fn begin(&self) {
         unsafe {
             self.context
@@ -72,9 +100,14 @@ impl CommandList {
         }
     }
 
+    // End recording commands into the command buffer
     pub fn end(&self) {
         unsafe { self.context.device.end_command_buffer(self.handle).unwrap() };
     }
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // ================= Wrapper functions over Vulkan commands using our own Vulkan primitives =================
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     pub fn bind_compute_pipeline(&self, pipeline: &ComputePipeline) {
         unsafe {

@@ -14,31 +14,47 @@ use winit::{
     window::Window,
 };
 
+/// Represents a Vulkan display, which is a window surface and swapchain for rendering to a window.
+/// The display is responsible for presenting images to the window.
+/// A swapchain is a collection of images that are used as the back buffer for rendering.
 pub struct Display {
+    /// The surface loader is an instance of the Vulkan surface extension functions.
     pub surface_loader: Surface,
+    /// The surface is a handle to the Vulkan surface object.
     pub surface: vk::SurfaceKHR,
 
+    /// The swapchain loader is an instance of the Vulkan swapchain extension functions.
     pub swapchain_loader: Swapchain,
+    /// The swapchain is a handle to the Vulkan swapchain object.
     pub swapchain: vk::SwapchainKHR,
 
+    /// The images are the images in the swapchain.
     pub images: Vec<Image>,
+    /// The views are the image views for the images in the swapchain.
     pub views: Vec<ImageView>,
 
+    /// The dims are the dimensions of the swapchain images.
     pub dims: UVec2,
+    /// The format is the format of the swapchain images.
     pub format: vk::Format,
 
+    /// The dpi is the dots per inch of the window.
     pub dpi: f32,
 }
 
 impl Display {
     const IMAGE_COUNT: u32 = 3;
 
+    /// Creates a new display with the specified context and window.
     pub fn new(context: Arc<Context>, window: &Window) -> Arc<Self> {
+        // Load the surface extension functions and create the surface.
         let surface_loader = Surface::new(&context.entry, &context.instance);
         let surface = create_surface(&context.entry, &context.instance, window);
 
+        // Load the swapchain extension functions
         let swapchain_loader = Swapchain::new(&context.instance, &context.device);
 
+        // Get the surface capabilities and format
         let capabilities = unsafe {
             surface_loader
                 .get_physical_device_surface_capabilities(context.physical, surface)
@@ -50,6 +66,7 @@ impl Display {
                 .unwrap()[0]
         };
 
+        // Create the swapchain
         let create_info = vk::SwapchainCreateInfoKHR::builder()
             .surface(surface)
             .min_image_count(Self::IMAGE_COUNT)
@@ -70,6 +87,7 @@ impl Display {
                 .unwrap()
         };
 
+        // Get the swapchain images and create image views for them
         let images = unsafe {
             swapchain_loader
                 .get_swapchain_images(swapchain)
@@ -111,10 +129,12 @@ impl Display {
         })
     }
 
+    /// Returns the number of frames in flight for the display.
     pub fn frames_in_flight(&self) -> usize {
         Self::IMAGE_COUNT as usize
     }
 
+    /// Show a swapchain image on the display.
     pub fn present(&self, context: &Context, index: u32, wait_semaphore: &Semaphore) {
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(std::slice::from_ref(&wait_semaphore.handle))
@@ -128,6 +148,7 @@ impl Display {
         };
     }
 
+    /// Acquires the next image in the swapchain and returns its index and whether it was acquired.
     pub fn acquire_next_image(&self, signal: &Semaphore) -> (u32, bool) {
         unsafe {
             self.swapchain_loader
@@ -139,6 +160,7 @@ impl Display {
 
 impl Drop for Display {
     fn drop(&mut self) {
+        // Destroy the swapchain and surface.
         unsafe {
             self.swapchain_loader
                 .destroy_swapchain(self.swapchain, None);
@@ -168,23 +190,6 @@ pub fn create_surface(
                 .hinstance(hinstance.as_ptr());
             let surface_fn = Win32Surface::new(entry, instance);
             unsafe { surface_fn.create_win32_surface(&create_info, None).unwrap() }
-        }
-
-        #[cfg(target_os = "macos")]
-        (RawDisplayHandle::AppKit(_), RawWindowHandle::AppKit(window)) => {
-            use raw_window_metal::{appkit, Layer};
-
-            let layer = match unsafe { appkit::metal_layer_from_handle(window) } {
-                Layer::Existing(layer) | Layer::Allocated(layer) => layer.cast(),
-            };
-
-            let surface_desc = vk::MetalSurfaceCreateInfoEXT::builder().layer(unsafe { &*layer });
-            let surface_fn = MetalSurface::new(entry, instance);
-            unsafe {
-                surface_fn
-                    .create_metal_surface(&surface_desc, None)
-                    .unwrap()
-            }
         }
 
         _ => panic!("Unsupported platform"),

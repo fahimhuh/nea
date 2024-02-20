@@ -2,34 +2,54 @@ use super::{buffer::Buffer, context::Context, image::ImageView, rt::Acceleration
 use ash::vk;
 use std::{ffi::c_void, sync::Arc};
 
+// This structure contains the information needed to write a reference to an image to a descriptor set.
 pub struct DescriptorImageWrite<'a> {
+    // The image view to reference.
     pub image_view: &'a ImageView,
+    // An optional sampler to use with the image.
     pub sampler: Option<vk::Sampler>,
+    // The kind of image to reference.
     pub image_kind: vk::DescriptorType,
+    // The memory layout of the image.
     pub layout: vk::ImageLayout,
+    // Where you want to bind the image.
     pub binding: u32,
 }
 
+// This structure contains the information needed to write a reference to a buffer to a descriptor set.
 pub struct DescriptorBufferWrite<'a> {
+    // The kind of buffer to reference.
     pub buffer_kind: vk::DescriptorType,
+    // The buffer to reference.
     pub buffer: &'a Buffer,
+    // The memory range of the buffer.
     pub range: u64,
+    // Where you want to bind the buffer.
     pub binding: u32,
 }
 
+// This structure contains the information needed to write a reference to a top-level acceleration structure to a descriptor set.
 pub struct DescriptorTLASWrite<'a> {
+    // The acceleration structure to reference.
     pub reference: &'a AccelerationStructure,
+    // Where you want to bind the acceleration structure.
     pub binding: u32,
 }
 
+// A descriptor set is a collection of references to images, buffers, and acceleration structures.
+// It is used to bind resources to shaders.
 pub struct DescriptorSet {
+    // The context that the descriptor set was created with.
     context: Arc<Context>,
+    // The handle to the descriptor set.
     pub handle: vk::DescriptorSet,
 }
 
 impl DescriptorSet {
+    // Writes references to images, buffers to the descriptor set.
     pub fn write(&self, images: &[DescriptorImageWrite], buffers: &[DescriptorBufferWrite]) {
         for image in images {
+            // Create a descriptor image info structure.
             let image_info = vk::DescriptorImageInfo {
                 sampler: image.sampler.unwrap_or(vk::Sampler::null()),
                 image_view: image.image_view.handle,
@@ -45,6 +65,7 @@ impl DescriptorSet {
                 .build();
 
             unsafe {
+                // Update the descriptor set with the image reference.
                 self.context
                     .device
                     .update_descriptor_sets(std::slice::from_ref(&write), &[])
@@ -52,6 +73,7 @@ impl DescriptorSet {
         }
 
         for buffer in buffers {
+            // Create a descriptor buffer info structure.
             let buffer_info = vk::DescriptorBufferInfo::builder()
                 .buffer(buffer.buffer.handle)
                 .offset(0)
@@ -67,6 +89,7 @@ impl DescriptorSet {
                 .build();
 
             unsafe {
+                // Update the descriptor set with the buffer reference.
                 self.context
                     .device
                     .update_descriptor_sets(std::slice::from_ref(&write), &[])
@@ -74,7 +97,9 @@ impl DescriptorSet {
         }
     }
 
+    // Writes a reference to a top-level acceleration structure to the descriptor set.
     pub fn write_tlas(&self, tlas: DescriptorTLASWrite) {
+        // Create a pointer to the acceleration structure handle.
         let handles = [tlas.reference.handle];
 
         let tlas_write = vk::WriteDescriptorSetAccelerationStructureKHR {
@@ -86,6 +111,7 @@ impl DescriptorSet {
         let ptr =
             (&tlas_write as *const vk::WriteDescriptorSetAccelerationStructureKHR).cast::<c_void>();
 
+        // Create a descriptor write structure.
         let write = vk::WriteDescriptorSet {
             p_next: ptr,
             dst_set: self.handle,
@@ -97,6 +123,7 @@ impl DescriptorSet {
         };
 
         unsafe {
+            // Update the descriptor set with the acceleration structure reference.
             self.context
                 .device
                 .update_descriptor_sets(std::slice::from_ref(&write), &[])
@@ -104,6 +131,8 @@ impl DescriptorSet {
     }
 }
 
+// A descriptor pool is a collection of resources that can be used to create descriptor sets.
+// It is used to allocate and free descriptor sets.
 pub struct DescriptorPool {
     context: Arc<Context>,
     pub handle: vk::DescriptorPool,
@@ -111,6 +140,7 @@ pub struct DescriptorPool {
 
 impl DescriptorPool {
     pub fn new(context: Arc<Context>) -> Self {
+        // Define the types of resources that the descriptor pool will contain.
         let storage_images = vk::DescriptorPoolSize::builder()
             .ty(vk::DescriptorType::STORAGE_IMAGE)
             .descriptor_count(100)
@@ -133,6 +163,7 @@ impl DescriptorPool {
 
         let sizes = [storage_images, uniform_buffers, sampled_images, tlasses];
 
+        // Create the descriptor pool.
         let create_info = vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(&sizes)
             .max_sets(100);
@@ -144,19 +175,23 @@ impl DescriptorPool {
                 .unwrap()
         };
 
+        // Return the descriptor pool.
         Self { context, handle }
     }
 
+    // Allocates a collection of descriptor sets from the descriptor pool.
     pub fn allocate(
         &self,
         context: &Context,
         layout: &DescriptorSetLayout,
         count: usize,
     ) -> Vec<DescriptorSet> {
+        // Create a collection of descriptor set layouts.
         let set_layouts = std::iter::repeat(layout.handle)
             .take(count)
             .collect::<Vec<_>>();
 
+        // Allocate the descriptor sets.
         let allocate_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(self.handle)
             .set_layouts(&set_layouts);
@@ -174,21 +209,14 @@ impl DescriptorPool {
                 .collect::<Vec<DescriptorSet>>()
         };
 
+        // Return the descriptor sets.
         sets
-    }
-
-    pub fn free(&self, context: &Context, set: vk::DescriptorSet) {
-        unsafe {
-            context
-                .device
-                .free_descriptor_sets(self.handle, &[set])
-                .unwrap();
-        }
     }
 }
 
 impl Drop for DescriptorPool {
     fn drop(&mut self) {
+        // Destroy the descriptor pool
         unsafe {
             self.context
                 .device
@@ -197,6 +225,7 @@ impl Drop for DescriptorPool {
     }
 }
 
+// A descriptor binding is a reference to a resource in a shader.
 pub struct DescriptorBinding {
     pub binding: u32,
     pub count: u32,
@@ -204,13 +233,18 @@ pub struct DescriptorBinding {
     pub stage: vk::ShaderStageFlags,
 }
 
+// A descriptor set layout is a collection of descriptor bindings and describes the types of resources that can be referenced in a descriptor set.
 pub struct DescriptorSetLayout {
+    // The context that the descriptor set layout was created with.
     context: Arc<Context>,
+    // The handle to the descriptor set layout.
     pub handle: vk::DescriptorSetLayout,
 }
 
 impl DescriptorSetLayout {
+    // Creates a new descriptor set layout.
     pub fn new(context: Arc<Context>, bindings: Vec<DescriptorBinding>) -> Self {
+        // Convert the bindings into a collection of Vulkan descriptor set layout bindings.
         let bindings = bindings
             .into_iter()
             .map(|db| {
@@ -223,6 +257,7 @@ impl DescriptorSetLayout {
             })
             .collect::<Vec<_>>();
 
+        // Create the descriptor set layout.
         let create_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings);
 
         let handle = unsafe {
@@ -232,11 +267,13 @@ impl DescriptorSetLayout {
                 .unwrap()
         };
 
+        // Return the descriptor set layout.
         Self { context, handle }
     }
 }
 
 impl Drop for DescriptorSetLayout {
+    // Destroys the descriptor set layout.
     fn drop(&mut self) {
         unsafe {
             self.context

@@ -23,7 +23,7 @@ pub struct Mesh {
 
 #[repr(C)]
 // The Material struct is a representation of the material of an object in the scene
-// and is used by the raytracing compute shader. It should be in the same layout 
+// and is used by the raytracing compute shader. It should be in the same layout
 // as the Material struct in the raytracer.comp shader.
 pub struct Material {
     base_color: glam::Vec3A,
@@ -74,11 +74,10 @@ impl Scene {
         command_pool: &CommandPool,
         objects: &Vec<GpuObject>,
     ) -> Vec<Mesh> {
-    
         let mut descs = Vec::new();
         let mut buffer_pairs = Vec::new();
-    
-        for  object in objects {
+
+        for object in objects {
             // Create staging buffers that are accesible by the CPU
             let indices_staging = Buffer::new(
                 context.clone(),
