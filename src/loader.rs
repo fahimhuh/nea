@@ -1,17 +1,13 @@
-use self::{images::GpuImage, objects::GpuObject};
+use self::objects::GpuObject;
 use parking_lot::Mutex;
 use std::{
     sync::OnceLock,
     thread::{self, JoinHandle},
 };
 
-pub mod images;
-pub mod objects;
-
 static GLOBAL_SCENE_LOADER: OnceLock<Mutex<SceneLoader>> = OnceLock::new();
 
 pub struct SceneData {
-    pub images: Vec<GpuImage>,
     pub objects: Vec<GpuObject>,
 }
 
@@ -80,17 +76,75 @@ fn load_task() -> anyhow::Result<SceneData> {
     log::info!("Loading file..");
     let (document, buffers, images) = gltf::import(&file)?;
 
-    let mut gpu_images = Vec::with_capacity(images.len());
-    // Parse the images into a GPU-friendly format
-    for image in images {
-        let gpu_image = images::parse_image(image)?;
-        gpu_images.push(gpu_image)
-    }
-
     let objects = objects::load_objects(&document, &buffers);
 
     Ok(SceneData {
-        images: gpu_images,
         objects,
     })
+}
+
+pub mod objects {
+    use gltf::Document;
+
+    pub struct GpuObject {
+        pub vertices: Vec<f32>,
+        pub indices: Vec<u32>,
+    
+        pub transform: glam::Mat4,
+    
+        pub base_color: glam::Vec3A,
+        pub emissive: glam::Vec3A,
+        pub roughness: f32,
+        pub metallic: f32,
+    }
+    
+    pub fn load_objects(document: &Document, buffers: &[gltf::buffer::Data]) -> Vec<GpuObject> {
+        let mut objects = Vec::new();
+    
+        for node in document.nodes() {
+            if let Some(mesh) = node.mesh() {
+                for primitive in mesh.primitives() {
+                    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+    
+                    let transform = glam::Mat4::from_cols_array_2d(&node.transform().matrix());
+    
+                    let vertices = reader
+                        .read_positions()
+                        .unwrap()
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<f32>>();
+    
+                    let indices = reader
+                        .read_indices()
+                        .unwrap()
+                        .into_u32()
+                        .collect::<Vec<u32>>();
+    
+                    let pbr = primitive.material().pbr_metallic_roughness();
+    
+                    let base_color = glam::Vec3A::from_slice(&pbr.base_color_factor());
+                    let roughness = pbr.roughness_factor();
+                    let metallic = pbr.metallic_factor();
+                    let emissive = glam::Vec3A::from_array(primitive.material().emissive_factor());
+    
+                    let object = GpuObject {
+                        vertices,
+                        indices,
+    
+                        transform,
+    
+                        base_color,
+                        emissive,
+                        roughness,
+                        metallic,
+                    };
+    
+                    objects.push(object);
+                }
+            }
+        }
+    
+        objects
+    }    
 }

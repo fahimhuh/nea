@@ -1,7 +1,7 @@
 use std::{ptr, sync::Arc};
 
 use crate::{
-    loader::{images::GpuImage, objects::GpuObject, SceneData},
+    loader::{objects::GpuObject, SceneData},
     vulkan::{
         buffer::Buffer,
         command::CommandPool,
@@ -35,7 +35,6 @@ pub struct Material {
 }
 
 pub struct Scene {
-    pub textures: Vec<Texture>,
     pub meshes: Vec<Mesh>,
     pub materials: Buffer,
 
@@ -47,112 +46,16 @@ impl Scene {
 
     pub fn load(context: Arc<Context>, data: SceneData) -> Self {
         let command_pool = CommandPool::new(context.clone(), context.queue_family);
-        let textures = Self::upload_textures(&context, &command_pool, data.images);
         let meshes = Self::build_meshes(&context, &command_pool, &data.objects);
         let materials = Self::upload_materials(&context, &data.objects);
 
         let tlas = Self::build_tlas(&context, &command_pool, &data.objects, &meshes);
 
         Self {
-            textures,
             meshes,
             materials,
             tlas,
         }
-    }
-
-    fn upload_textures(
-        context: &Arc<Context>,
-        command_pool: &CommandPool,
-        images: Vec<GpuImage>,
-    ) -> Vec<Texture> {
-        let mut textures = Vec::with_capacity(images.len());
-        for (index, image) in images.into_iter().enumerate() {
-            let texture = Image::new(
-                context.clone(),
-                image.dims,
-                image.format,
-                vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST,
-                &format!("Scene Texture {}", index),
-            );
-
-            let staging = Buffer::new(
-                context.clone(),
-                image.bytes.len() as u64,
-                vk::BufferUsageFlags::TRANSFER_SRC,
-                gpu_allocator::MemoryLocation::CpuToGpu,
-                &format!("Staging buffer for Texture {}", index),
-            );
-
-            let fence = Fence::new(context.clone(), false);
-
-            let ptr = staging.get_ptr().cast::<u8>().as_ptr();
-            unsafe { ptr.copy_from_nonoverlapping(image.bytes.as_ptr(), image.bytes.len()) };
-
-            let cmds = command_pool.allocate();
-            cmds.begin();
-
-            let barrier = [vk::ImageMemoryBarrier2 {
-                src_stage_mask: vk::PipelineStageFlags2::NONE,
-                src_access_mask: vk::AccessFlags2::NONE,
-                dst_stage_mask: vk::PipelineStageFlags2::TRANSFER,
-                dst_access_mask: vk::AccessFlags2::TRANSFER_WRITE,
-                old_layout: vk::ImageLayout::UNDEFINED,
-                new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-                src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
-                dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
-                image: texture.handle,
-                subresource_range: Image::default_subresource(vk::ImageAspectFlags::COLOR),
-                ..Default::default()
-            }];
-
-            cmds.pipeline_barrier(&barrier, &[]);
-
-            let copy = BufferImageCopy {
-                buffer_offset: 0,
-                buffer_row_length: 0,
-                buffer_image_height: 0,
-                image_subresource: vk::ImageSubresourceLayers {
-                    aspect_mask: vk::ImageAspectFlags::COLOR,
-                    mip_level: 0,
-                    base_array_layer: 0,
-                    layer_count: 1,
-                },
-                image_offset: vk::Offset3D::default(),
-                image_extent: vk::Extent3D {
-                    width: image.dims.x,
-                    height: image.dims.y,
-                    depth: image.dims.z,
-                },
-            };
-            cmds.copy_to_image(&staging, &texture, &[copy]);
-
-            let barrier = [vk::ImageMemoryBarrier2 {
-                src_stage_mask: vk::PipelineStageFlags2::TRANSFER,
-                src_access_mask: vk::AccessFlags2::TRANSFER_WRITE,
-                dst_stage_mask: vk::PipelineStageFlags2::COMPUTE_SHADER,
-                dst_access_mask: vk::AccessFlags2::SHADER_READ,
-                old_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-                new_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
-                dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
-                image: texture.handle,
-                subresource_range: Image::default_subresource(vk::ImageAspectFlags::COLOR),
-                ..Default::default()
-            }];
-
-            cmds.pipeline_barrier(&barrier, &[]);
-            cmds.end();
-
-            context.submit(&[cmds], None, None, Some(&fence));
-            fence.wait_and_reset();
-            textures.push(Texture {
-                image: texture,
-                dims: image.dims.xy(),
-                format: image.format,
-            });
-        }
-        textures
     }
 
     fn build_meshes(
