@@ -1,4 +1,5 @@
 // https://github.com/MatchaChoco010/egui-winit-ash-integration/tree/main/src/shaders/src
+// Interface vertex shader to draw the ui
 #version 460
 
 layout(location = 0) in vec2 inPos;

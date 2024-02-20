@@ -1,4 +1,5 @@
 // https://github.com/MatchaChoco010/egui-winit-ash-integration/tree/main/src/shaders/src
+// Fragment shader to render text with a texture atlas
 #version 460
 
 layout(location = 0) in vec4 inColor;

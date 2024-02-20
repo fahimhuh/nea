@@ -1,16 +1,87 @@
 #version 460
+
+// The following extensions are required to use ray tracing features
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_ray_query : require
 #extension GL_EXT_ray_tracing_position_fetch : require
 
-#include "constants.glsl"
-#include "structs.glsl"
-#include "random.glsl"
+// The following defines are used to define the mathematical constants
+#define PI 3.141592653589
 
+// The uniforms struct is used the data that is constant for all invocations of the shader
+// and contains global data that does not change between individual invocations.
+struct Uniforms {
+	uint seed; 
+	uint samples;
+	uint bounces;
+	uint dummy;
+
+	vec4 pos;
+
+	mat4 inverseView;
+	mat4 inverseProj;
+};
+
+// Globals are data that can change within this invocation of the shader
+struct Globals {
+	uvec3 rngState;
+};
+
+// Mathematical representation of a ray
+struct Ray {
+	vec3 origin;
+	vec3 dir;
+};
+
+// Material properties for a surface
+struct Material {
+	vec4 baseColor;
+	vec4 emissive;
+	float roughness;
+	float metallic;
+};
+
+// Information about a ray-surface intersection
+struct HitInfo {
+	vec3 pos;
+	vec3 normal;
+	Material material;
+};
+
+// 3 Dimensional PRNG based on http://www.jcgt.org/published/0009/03/02/
+uvec3 pcg3d(inout uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
+// Generates a random directional vector in the area around a unit hemisphere
+// r is 2 uniformly random floats in the range (0, 1)
+// Mathematical derivation found in Design documentation and
+// Chapter 13.6.1 of the PBR book
+// https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations
+// The PDF of this function is constant : 1 / 2PI
+vec3 uniformSampleHemisphere(vec2 r) {
+    float s = sqrt(1 - r.x * r.x);
+    float phi = 2 * PI * r.y;
+    return vec3(s * cos(phi), r.x, s * sin(phi));
+}
+
+// The resultImage is the image that will be displayed to the screen
 layout(binding=0, rgba8) uniform image2D resultImage;
+// The uniform block contains the data that is constant for all invocations of the shader
 layout(binding=1) uniform UniformBlock { Uniforms data; } uniforms;
+// The acceleration structure is used to store the scene geometry
 layout(binding=2) uniform accelerationStructureEXT tlas;
+// The material block contains the material properties for all objects in the scene
 layout(binding=3) buffer Materials { Material materials[4096]; } materialBlock;
+// Global data
 Globals globals;
 
 // Returns a randomly generated 3D vector in the range [0, 1)
@@ -36,22 +107,27 @@ mat3 calcONB(vec3 n) {
     return onb;
 }
 
+// Returns the hit information for a rayQuery
 HitInfo getHitInfo(Ray ray, rayQueryEXT rayQuery) {
 	HitInfo hit;
 	
+	// Get the vertex positions of the triangle
 	vec3 v[3];
 	rayQueryGetIntersectionTriangleVertexPositionsEXT(rayQuery, true, v);
 
+	// Get the intersection point and normal
 	float t = rayQueryGetIntersectionTEXT(rayQuery, true);
 	hit.pos = ray.origin + t * ray.dir;
 	hit.normal = normalize(cross(v[1] - v[0], v[2] - v[0]));
 
+	// Get the material index and return the material
 	int index = rayQueryGetIntersectionInstanceCustomIndexEXT(rayQuery, true);
 	hit.material = materialBlock.materials[index];
 	return hit;
 }
 
 bool intersect(Ray ray, rayQueryEXT rayQuery, out HitInfo hit) {
+	// Initialise the hardware ray query
 	rayQueryInitializeEXT(rayQuery, tlas, gl_RayFlagsOpaqueEXT, 0xFF, ray.origin, 0.0, ray.dir, 10000.0);
 	while (rayQueryProceedEXT(rayQuery)) { }
 
@@ -65,20 +141,33 @@ bool intersect(Ray ray, rayQueryEXT rayQuery, out HitInfo hit) {
 }
 
 vec3 pathtrace(Ray ray) {
+	// The result is the final color of the pixel
 	vec3 result = vec3(0.0);
+	// The throughput is the accumulated color of the pixel
 	vec3 throughput = vec3(1.0);
 
 	rayQueryEXT rayQuery;
 
 	for (int i = 0; i < uniforms.data.bounces; i++) { 
 		HitInfo hit;
+		// Check if the ray intersects with the scene
 		if (intersect(ray, rayQuery, hit)) {
 			ray.origin = hit.pos;
 			
-			ray.dir = normalize(calcONB(hit.normal) * uniformSampleHemisphere(random().xy));
+			// Calculate the new ray direction
+			ray.dir = normalize(
+				// Calculate the orthogonal basis vectors to transform the randomly sampled direction
+				calcONB(hit.normal) * 
+				// Uniformly sample the hemisphere randomly
+				uniformSampleHemisphere(random().xy));
+
+			// Offset the ray origin slightly to avoid self-intersection
 			ray.origin += ray.dir * 0.01;
 
+			// Add the emissive color to the result
 			result += hit.material.emissive.rgb * throughput;
+
+			// Multiply the throughput by the BRDF and the cosine of the angle between the surface normal and the ray direction
 			throughput *= 2 * (hit.material.baseColor.rgb) * dot(hit.normal, ray.dir);
 		} else {
 			break;
