@@ -2,12 +2,7 @@ struct Uniforms {
 	uint seed; 
 	uint samples;
 	uint bounces;
-	uint mode;
-
-	float focal_length;
-	float aperture;
-	float exposure;
-	float time;
+	uint dummy;
 
 	vec4 pos;
 
