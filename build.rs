@@ -9,6 +9,8 @@ use std::{
 type ShaderInfo = (&'static str, ShaderKind);
 
 const SHADER_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/shaders");
+
+// List of all the shaders we want to compile
 const SHADERS: [ShaderInfo; 3] = [
     ("interface/interface.frag", ShaderKind::Fragment),
     ("interface/interface.vert", ShaderKind::Vertex),
@@ -16,29 +18,40 @@ const SHADERS: [ShaderInfo; 3] = [
 ];
 
 fn main() {
+    // Rerun the buildscript if anything in the shaders directory changes
     println!("cargo:rerun-if-changed=shaders/");
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
+
+    // Initialise the shader compiler
     let compiler = shaderc::Compiler::new().unwrap();
 
     for (path, stage) in SHADERS {
+        // Load the shader from the path
         let (code, path) = load_shader(path);
+
+        // Get the name of the shader
         let name = path.file_name().unwrap().to_str().unwrap();
 
+        // Set compiler options
         let mut compile_options = shaderc::CompileOptions::new().unwrap();
         compile_options.set_generate_debug_info();
         compile_options.set_optimization_level(shaderc::OptimizationLevel::Performance);
-        compile_options.set_include_callback(shader_include_callback);
 
+        // Compile the shader
         let artifact = compiler
             .compile_into_spirv(&code, stage, name, "main", Some(&compile_options))
             .unwrap();
+
+        // Get the spirv bytecode
         let spv = artifact.as_binary();
 
+        // Create the rust module
         fs::create_dir_all(&out_dir).unwrap();
         let module_dir = Path::new(&out_dir).join(format!("{}.rs", name));
         let mut module = File::create(module_dir).unwrap();
 
+        // Write the spirv to the rust module
         write_spirv(&mut module, &spv);
     }
 }
@@ -61,26 +74,3 @@ fn write_spirv(module: &mut File, code: &[u32]) {
     .unwrap();
 }
 
-pub fn shader_include_callback(
-    name: &str,
-    _kind: shaderc::IncludeType,
-    _original: &str,
-    _depth: usize,
-) -> shaderc::IncludeCallbackResult {
-    // Search for shaders relative to the project directory
-    const SHADER_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/shaders");
-
-    let mut path = PathBuf::from(SHADER_DIR);
-    path.push(name);
-
-    let mut content = String::new();
-    let mut file = File::open(path).unwrap();
-    file.read_to_string(&mut content).unwrap();
-
-    let resolved_name = name.to_string();
-
-    Ok(shaderc::ResolvedInclude {
-        resolved_name,
-        content,
-    })
-}
